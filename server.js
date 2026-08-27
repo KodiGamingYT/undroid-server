@@ -20,15 +20,14 @@ app.get('/video_feed', (req, res) => {
     res.end(latestFrame);
 });
 
-// Zabezpieczone odbieranie współrzędnych swipe i kliknięć
+// Odbieranie współrzędnych gestu przesunięcia
 app.get('/click', (req, res) => {
-    // Jeśli z jakiegoś powodu x1 nie istnieje, traktujemy to jako zwykły klik (x, y)
-    let x1 = req.query.x1 || req.query.x || "0";
-    let y1 = req.query.y1 || req.query.y || "0";
-    let x2 = req.query.x2 || x1;
-    let y2 = req.query.y2 || y1;
-
-    pendingClicks.push({ x1: x1, y1: y1, x2: x2, y2: y2 });
+    pendingClicks.push({ 
+        x1: req.query.x1, 
+        y1: req.query.y1,
+        x2: req.query.x2,
+        y2: req.query.y2
+    });
     res.send("OK");
 });
 
