@@ -1,22 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Constant Stream System</title>
+    <title>Un-Droid - H.264 Touchpad System</title>
     <style>
-        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; }
-        #phone-screen { width: 100vw; height: 100vh; position: relative; }
-        img { width: 100%; height: 100%; object-fit: fill; cursor: pointer; user-select: none; -webkit-user-drag: none; }
+        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        
+        #screen-container { 
+            position: relative; 
+            width: 100vw; 
+            height: 100vh; 
+        }
+
+        /* 1. Odtwarzacz MP4/H.264 na pełny ekran z pełną płynnością FPS */
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: fill; 
+            pointer-events: none; /* Ukrywa domyślne menu wideo przeglądarki */
+        }
+
+        /* 2. Twój pomysł: Niewidzialny wirtualny touchpad na całą stronę */
+        #touch-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            z-index: 999; 
+            cursor: crosshair; 
+            background: rgba(0,0,0,0); /* W pełni przezroczysta warstwa łapiąca dotyk */
+        }
     </style>
     <script>
-        function handleScreenClick(event) {
-            var imageElement = document.getElementById("live-stream-img");
-            var rect = imageElement.getBoundingClientRect();
+        function handleTouchpadClick(event) {
+            var overlay = document.getElementById("touch-overlay");
+            var rect = overlay.getBoundingClientRect();
             
+            // Pobieranie współrzędnych z wirtualnego touchpada na pełnym ekranie
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
-            if (relativeX < 0 || relativeX > 1 || relativeY < 0 || relativeY > 1) return;
-            
+            // Wysłanie współrzędnych do serwera Render
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
@@ -25,9 +49,14 @@
 </head>
 <body>
 
-    <div id="phone-screen">
-        <!-- Przeglądarka połączy się raz i sama będzie płynnie dekodować film w locie -->
-        <img id="live-stream-img" src="/video_feed" onclick="handleScreenClick(event)">
+    <div id="screen-container">
+        <!-- Płynny odtwarzacz wideo w chmurze H.264 -->
+        <video autoplay muted playsinline id="live-video">
+            <source src="/video_stream" type="video/mp4">
+        </video>
+        
+        <!-- Niewidzialna nakładka dotykowa na całą stronę -->
+        <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
     </div>
 
 </body>
