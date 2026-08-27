@@ -3,40 +3,36 @@ const app = express();
 const path = require('path');
 const PORT = process.env.PORT || 10000;
 
-let latestFrame = null;
-// Lista aktywnych widzów oglądających strumień
-let clients = [];
+let latestVideoChunk = null;
+let videoClients = [];
 
-app.use(express.raw({ type: 'image/jpeg', limit: '10mb' }));
+app.use(express.raw({ type: 'video/h264', limit: '20mb' }));
 app.use(express.json());
 
-// 1. Odbieranie klatki z Pythona i natychmiastowe rozsyłanie jej do wszystkich połączonych osób
-app.post('/upload_frame', (req, res) => {
-    latestFrame = req.body;
+// Odbieranie zakodowanego wideo H.264 z Twojego PC
+app.post('/upload_video', (req, res) => {
+    latestVideoChunk = req.body;
     res.send("OK");
 
-    // Masowe wypychanie klatki do podpiętych przeglądarek
-    clients.forEach(client => {
-        client.res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${latestFrame.length}\r\n\r\n`);
-        client.res.write(latestFrame);
-        client.res.write('\r\n');
+    // Rozsyłanie danych wideo do wszystkich podpiętych odtwarzaczy HTML5
+    videoClients.forEach(client => {
+        client.res.write(latestVideoChunk);
     });
 });
 
-// 2. Stały, otwarty strumień wideo MJPEG (Wysokie FPS, 1 zapytanie = nieskończony film)
-app.get('/video_feed', (req, res) => {
+// Strumieniowanie wideo bezpośrednio do tagu <video> na stronie
+app.get('/video_stream', (req, res) => {
     res.writeHead(200, {
-        'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
+        'Content-Type': 'video/mp4',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Pragma': 'no-cache'
+        'Connection': 'keep-alive'
     });
 
     const clientId = Date.now();
-    clients.push({ id: clientId, res: res });
+    videoClients.push({ id: clientId, res: res });
 
     req.on('close', () => {
-        clients = clients.filter(client => client.id !== clientId);
+        videoClients = videoClients.filter(client => client.id !== clientId);
     });
 });
 
@@ -55,4 +51,4 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Server streaming on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server MP4 active on port ${PORT}`));
