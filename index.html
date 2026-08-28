@@ -263,7 +263,7 @@
             if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
         });
 
-        const blockedKeys = ['Control', 'Alt', 'Shift', 'Meta', 'Tab', 'Insert', 'PrintScreen', 'Escape', 'OS'];
+        const blockedKeys = [];
         function isKeyAllowed(key) {
             if (blockedKeys.includes(key)) return false;
             if (/^F(1[0-2]|[1-9])$/.test(key)) return false;
