@@ -46,7 +46,12 @@
         <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
     </div>
 
+    <!-- Dodajemy klienta biblioteki Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript">
+        // Nawiązanie połączenia z serwerem przez WebSockets
+        const socket = io(); 
+
         const captureLayer = document.getElementById('mouse-capture-layer');
         const notice = document.getElementById('lock-notice');
 
@@ -70,7 +75,7 @@
         let accumY = 0;
         let sendTimeout = null;
 
-        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci)
+        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci, zachowuje 60 FPS)
         function handleMouseMove(e) {
             accumX += e.movementX;
             accumY += e.movementY;
@@ -99,10 +104,14 @@
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
+        // Natychmiastowa wysyłka paczki przez WebSocket (zastępuje powolne zapytania HTTP)
         function sendMouseEvent(action, dx, dy, button) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", `/mouse_event?action=${action}&dx=${dx}&dy=${dy}&button=${button}`, true);
-            xhr.send();
+            socket.emit("mouse_event", { 
+                action: action, 
+                dx: dx, 
+                dy: dy, 
+                button: button 
+            });
         }
     </script>
 </body>
