@@ -14,10 +14,14 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 io.on('connection', (socket) => {
     console.log('Nawiązano nowe połączenie:', socket.id);
 
-    // Kiedy przyjdzie event z komputera / telefonu / Kindle'a
+    // Przekazywanie ruchów i kliknięć myszy
     socket.on('mouse_event', (data) => {
-        // Natychmiast przekieruj do Pythona
         socket.broadcast.emit('mouse_event', data);
+    });
+
+    // NOWE: Przekazywanie wciśnięć klawiatury
+    socket.on('key_event', (data) => {
+        socket.broadcast.emit('key_event', data);
     });
 
     socket.on('disconnect', () => console.log('Odłączono:', socket.id));
