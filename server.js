@@ -4,39 +4,31 @@ const path = require('path');
 const PORT = process.env.PORT || 10000;
 
 let latestFrame = null;
-let clients = [];
+let pendingClicks = [];
 
 app.use(express.raw({ type: 'image/webp', limit: '10mb' }));
 app.use(express.json());
 
+// 1. Odbieranie klatki z Pythona
 app.post('/upload_frame', (req, res) => {
     latestFrame = req.body;
     res.send("OK");
-
-    // Rozsyłanie klatek WebP do widzów
-    clients.forEach(client => {
-        client.res.write(`--frame\r\nContent-Type: image/webp\r\nContent-Length: ${latestFrame.length}\r\n\r\n`);
-        client.res.write(latestFrame);
-        client.res.write('\r\n');
-    });
 });
 
-app.get('/video_feed', (req, res) => {
+// 2. Oddawanie najświeższej pojedynczej klatki (Bezpieczne dla każdej przeglądarki)
+app.get('/get_frame', (req, res) => {
+    if (!latestFrame) {
+        res.status(404).send("No frame yet");
+        return;
+    }
     res.writeHead(200, {
-        'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Content-Type': 'image/webp',
+        'Content-Length': latestFrame.length,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
     });
-
-    const clientId = Date.now();
-    clients.push({ id: clientId, res: res });
-
-    req.on('close', () => {
-        clients = clients.filter(client => client.id !== clientId);
-    });
+    res.end(latestFrame);
 });
 
-let pendingClicks = [];
 app.get('/click', (req, res) => {
     pendingClicks.push({ x: req.query.x, y: req.query.y });
     res.send("OK");
