@@ -1,8 +1,7 @@
-
-        <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Hardware Mouse System</title>
+    <title>Un-Droid - WebRTC Zero Lag System</title>
     <style>
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
@@ -12,18 +11,14 @@
             position: relative;
         }
 
-        #twitch-embed {
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        #twitch-embed iframe {
+        /* Ramka WebRTC VDO.ninja na pełny ekran */
+        iframe {
             width: 100% !important;
             height: 100% !important;
             border: none;
         }
 
-        /* Przezroczysta nakładka przechwytująca sprzętową mysz przed Twitchem */
+        /* Przezroczysta nakładka przechwytująca sprzętową mysz przed ramką wideo */
         #mouse-capture-layer {
             position: absolute;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -38,58 +33,25 @@
             border-radius: 20px; font-size: 13px; z-index: 10000; pointer-events: none;
         }
     </style>
-    
-    <!-- PAMIĘTAM: Dokładnie ten oficjalny skrypt osadzania od Twitcha -->
-       <script src="https://embed.twitch.tv/embed/v1.js"></script>
 </head>
 <body>
 
-    <div id="lock-notice">Kliknij na ekran, aby włączyć stream i zablokować mysz (ESC, aby wyjść)</div>
+    <div id="lock-notice">Kliknij na ekran, aby przejąć kontrolę nad myszką (ESC, aby wyjść)</div>
 
     <div id="screen-container">
-        <div id="twitch-embed"></div>
-        <!-- Warstwa przechwytująca ruchy przed ramką Twitcha -->
+        <!-- 1. OSADZENIE ULTRA-SZYBKIEGO WEBRTC (Wklej tu swój link z kroku 1 i dopisz na końcu &autoplay=1&mute=1) -->
+        <iframe id="video-feed" src="https://vdo.ninja/?view=vyScvEJ" allow="autoplay; picture-in-picture"></iframe>
+        
+        <!-- 2. Warstwa przechwytująca ruchy Pointer Lock -->
         <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
     </div>
 
     <script type="text/javascript">
         const captureLayer = document.getElementById('mouse-capture-layer');
         const notice = document.getElementById('lock-notice');
-        let twitchPlayerInstance = null;
 
-        // Inicjalizacja oficjalnego obiektu Twitch.Embed z Twoim jawnym parentem Render
-           new Twitch.Embed("twitch-embed", {
-            width: "100%",
-            height: "100%",
-            channel: "undroid_project",
-            parent: ["undroid-server.onrender.com"], // <--- Oczywiście pamiętam o jawnym parencie!
-            layout: "video", // Ukrywa czat Twitcha i zostawia sam czysty obraz
-            autoplay: true,
-            muted: true
-        });
-
-        // Czekamy, aż Twitch wygeneruje player, żebyśmy mogli nim sterować z kodu JavaScript
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                var iframe = document.querySelector('#twitch-embed iframe');
-                if (iframe) {
-                    twitchPlayerInstance = new Twitch.Player("twitch-embed");
-                }
-            }, 1000);
-        });
-
-        // 1. Aktywacja wideo + blokada kursora (Pointer Lock) po pierwszym kliknięciu
+        // Aktywacja blokady kursora (Pointer Lock) po kliknięciu
         captureLayer.addEventListener('click', () => {
-            // Jeśli odtwarzacz Twitcha jest załadowany, siłą odpalamy wideo przez kod JS
-            if (twitchPlayerInstance) {
-                try {
-                    twitchPlayerInstance.play();
-                } catch(e) {
-                    console.log("Twitch player play command failed, retrying...");
-                }
-            }
-            
-            // Włączamy blokadę myszy
             captureLayer.requestPointerLock();
         });
 
@@ -104,12 +66,11 @@
             }
         }, false);
 
-        // Liczniki bufora ruchu myszy, aby nie zapchać darmowego Rendera
         let accumX = 0;
         let accumY = 0;
         let sendTimeout = null;
 
-        // 2. Przesyłanie przesunięcia myszy
+        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci)
         function handleMouseMove(e) {
             accumX += e.movementX;
             accumY += e.movementY;
@@ -120,25 +81,22 @@
                     accumX = 0;
                     accumY = 0;
                     sendTimeout = null;
-                }, 15); // Wysyłanie paczek ruchu co 15ms zapewnia idealną płynność
+                }, 15);
             }
         }
 
-        // 3. Przesyłanie wciśnięcia przycisku (Lewy = 0, Prawy = 2)
         function handleMouseDown(e) {
             if (document.pointerLockElement !== captureLayer) return;
             e.preventDefault();
             sendMouseEvent("down", 0, 0, e.button);
         }
 
-        // 4. Przesyłanie puszczenia przycisku (Koniec kliknięcia lub koniec drag)
         function handleMouseUp(e) {
             if (document.pointerLockElement !== captureLayer) return;
             e.preventDefault();
             sendMouseEvent("up", 0, 0, e.button);
         }
 
-        // Blokowanie systemowego menu kontekstowego Windowsa po kliknięciu prawym przyciskiem myszy
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         function sendMouseEvent(action, dx, dy, button) {
