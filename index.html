@@ -39,17 +39,17 @@
     <div id="lock-notice">Click on the screen to control the device (Click ESC to stop controlling)</div>
 
     <div id="screen-container">
-        <!-- 1. OSADZENIE ULTRA-SZYBKIEGO WEBRTC (Wklej tu swój link z kroku 1 i dopisz na końcu &autoplay=1&mute=1) -->
+        <!-- OSADZENIE ULTRA-SZYBKIEGO WEBRTC -->
         <iframe id="video-feed" src="https://vdo.ninja/?view=DtDPYut" allow="autoplay; picture-in-picture"></iframe>
         
-        <!-- 2. Warstwa przechwytująca ruchy Pointer Lock -->
+        <!-- Warstwa przechwytująca ruchy Pointer Lock -->
         <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
     </div>
 
-    <!-- Dodajemy klienta biblioteki Socket.IO -->
+    <!-- Klient Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript">
-        // Nawiązanie połączenia z serwerem przez WebSockets
+        // Nawiązanie natychmiastowego połączenia WebSockets
         const socket = io(); 
 
         const captureLayer = document.getElementById('mouse-capture-layer');
@@ -75,7 +75,7 @@
         let accumY = 0;
         let sendTimeout = null;
 
-        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci, zachowuje 60 FPS)
+        // Przesyłanie przesunięcia myszy z drobnym buforem 15ms (daje płynne 60 FPS i nie zapycha łącza)
         function handleMouseMove(e) {
             accumX += e.movementX;
             accumY += e.movementY;
@@ -104,7 +104,7 @@
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Natychmiastowa wysyłka paczki przez WebSocket (zastępuje powolne zapytania HTTP)
+        // Błyskawiczna wysyłka przez WebSockets (bez zapytań HTTP)
         function sendMouseEvent(action, dx, dy, button) {
             socket.emit("mouse_event", { 
                 action: action, 
