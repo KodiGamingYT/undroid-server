@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - WebP Touchpad System</title>
+    <title>Un-Droid - OBS Stream Touchpad</title>
     <style>
-        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; }
+        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
         #screen-container { 
             position: relative; 
@@ -11,15 +11,20 @@
             height: 100vh; 
         }
 
-        /* Obraz WebP rozciągnięty na całą stronę */
-        img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: fill; 
-            pointer-events: none; 
+        /* Kontener na oficjalny odtwarzacz Twitcha */
+        #twitch-embed {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Wymuszamy, aby ramka wideo była na pełny ekran i ignorowała kliknięcia */
+        #twitch-embed iframe {
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
         }
 
-        /* Niewidzialna nakładka dotykowa na całą stronę */
+        /* Niewidzialny wirtualny touchpad nałożony idealnie na film */
         #touch-overlay { 
             position: absolute; 
             top: 0; 
@@ -31,13 +36,27 @@
             background: rgba(0,0,0,0); 
         }
     </style>
-    <script>
-        // Samodzielne, błyskawiczne pobieranie klatki co 45ms (Bezpieczne dla telefonów i Kindle)
-        setInterval(function() {
-            var img = document.getElementById("live-stream-img");
-            // Dodajemy unikalny timestamp, żeby przeglądarka nie pobierała obrazka z pamięci podręcznej (Cache)
-            img.src = "/get_frame?t=" + new Date().getTime();
-        }, 45);
+    
+    <!-- Ładowanie oficjalnego skryptu integracyjnego od Twitcha, który omija blokady parent -->
+    <script src="https://twitch.tv"></script>
+</head>
+<body>
+
+    <div id="screen-container">
+        <!-- Miejsce, w które skrypt automatycznie wstrzyknie wideo -->
+        <div id="twitch-embed"></div>
+        
+        <!-- Niewidzialna nakładka dotykowa na wierzchu filmu -->
+        <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
+    </div>
+
+    <script type="text/javascript">
+        // Inicjalizacja odtwarzacza Twitch (Automatycznie autoryzuje domenę na żywo)
+        new Twitch.Player("twitch-embed", {
+            channel: "undroid_project",
+            muted: true,
+            controls: false
+        });
 
         function handleTouchpadClick(event) {
             var overlay = document.getElementById("touch-overlay");
@@ -51,16 +70,5 @@
             xhr.send();
         }
     </script>
-</head>
-<body>
-
-    <div id="screen-container">
-        <!-- Obraz pobierany asynchronicznie przez JS -->
-        <img id="live-stream-img" src="/get_frame">
-        
-        <!-- Niewidzialny touchpad na wierzchu -->
-        <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
-    </div>
-
 </body>
 </html>
