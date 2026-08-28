@@ -7,7 +7,7 @@ let mouseEvents = [];
 
 app.use(express.json());
 
-// Rejestrowanie sprzętowych ruchów myszy i przycisków z wirtualnego touchpada Pointer Lock
+// Odbieranie sprzętowych akcji myszy z wirtualnego touchpada Pointer Lock
 app.get('/mouse_event', (req, res) => {
     mouseEvents.push({
         action: req.query.action,
@@ -18,9 +18,10 @@ app.get('/mouse_event', (req, res) => {
     res.send("OK");
 });
 
+// Oddawanie zgromadzonych ruchów do skryptu w Pythonie
 app.get('/get_clicks', (req, res) => {
     res.json(mouseEvents);
-    mouseEvents = []; // Czyszczenie kolejki, aby ruchy się nie dublowały
+    mouseEvents = []; // Błyskawiczne czyszczenie kolejki, aby uniknąć lagów
 });
 
 app.get('/', (req, res) => {
