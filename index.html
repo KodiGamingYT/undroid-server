@@ -1,109 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - WebRTC Zero Lag System</title>
+    <title>Un-Droid - Hardware VNC System</title>
     <style>
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        #screen-container { 
-            width: 100vw; 
-            height: 100vh; 
-            position: relative;
+        /* Kontener na ekran VNC rozciągnięty na całą stronę */
+        #vnc-canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-
-        /* Ramka WebRTC VDO.ninja na pełny ekran */
-        iframe {
+        canvas {
             width: 100% !important;
             height: 100% !important;
-            border: none;
-        }
-
-        /* Przezroczysta nakładka przechwytująca sprzętową mysz przed ramką wideo */
-        #mouse-capture-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0);
-        }
-
-        #lock-notice {
-            position: absolute;
-            top: 10px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px;
-            border-radius: 20px; font-size: 13px; z-index: 10000; pointer-events: none;
+            object-fit: fill;
         }
     </style>
+    <!-- Ładowanie oficjalnego rdzenia noVNC z chmury CDN (Działa na Kindle!) -->
+    <script type="module">
+        import RFB from 'https://jsdelivr.net';
+
+        let rfb;
+        function connectVNC() {
+            // Ponieważ darmowy Render nie ma stałego IP, łączymy się bezpośrednio 
+            // z adresem Twojego domowego komputera przez protokół Websocket.
+            // Zmień 'TWÓJ_DOMOWY_ADRES_IP' na Twoje publiczne IP (lub link z ngroka dla portu 8081)
+            const host = "https://052b9d7b06bb96c8-93-159-12-2.serveousercontent.com"; 
+            const port = "8081";
+            const password = "1234"; // Twoje hasło ustawione w UltraVNC
+
+            rfb = new RFB(document.getElementById('vnc-canvas-container'), `ws://${host}:${port}`, {
+                credentials: { password: password }
+            });
+
+            // Automatyczne skalowanie obrazu pod ekran Kindle/PC
+            rfb.scaleViewport = true;
+            rfb.resizeSession = true;
+
+            rfb.addEventListener("connect", () => {
+                console.log("Połączono pomyślnie z telefonem przez VNC bez lagów!");
+            });
+        }
+
+        window.addEventListener('load', connectVNC);
+    </script>
 </head>
 <body>
 
-    <div id="lock-notice">Kliknij na ekran, aby przejąć kontrolę nad myszką (ESC, aby wyjść)</div>
+    <!-- W tym miejscu noVNC automatycznie wygeneruje bezlagowy touchpad i wideo -->
+    <div id="vnc-canvas-container"></div>
 
-    <div id="screen-container">
-        <!-- 1. OSADZENIE ULTRA-SZYBKIEGO WEBRTC (Wklej tu swój link z kroku 1 i dopisz na końcu &autoplay=1&mute=1) -->
-        <iframe id="video-feed" src="https://vdo.ninja/?view=vyScvEJ" allow="autoplay; picture-in-picture"></iframe>
-        
-        <!-- 2. Warstwa przechwytująca ruchy Pointer Lock -->
-        <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
-    </div>
-
-    <script type="text/javascript">
-        const captureLayer = document.getElementById('mouse-capture-layer');
-        const notice = document.getElementById('lock-notice');
-
-        // Aktywacja blokady kursora (Pointer Lock) po kliknięciu
-        captureLayer.addEventListener('click', () => {
-            captureLayer.requestPointerLock();
-        });
-
-        // Śledzenie stanu blokady kursora
-        document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === captureLayer) {
-                notice.style.display = 'none';
-                document.addEventListener("mousemove", handleMouseMove, false);
-            } else {
-                notice.style.display = 'block';
-                document.removeEventListener("mousemove", handleMouseMove, false);
-            }
-        }, false);
-
-        let accumX = 0;
-        let accumY = 0;
-        let sendTimeout = null;
-
-        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci)
-        function handleMouseMove(e) {
-            accumX += e.movementX;
-            accumY += e.movementY;
-
-            if (!sendTimeout) {
-                sendTimeout = setTimeout(() => {
-                    sendMouseEvent("move", accumX, accumY, 0);
-                    accumX = 0;
-                    accumY = 0;
-                    sendTimeout = null;
-                }, 15);
-            }
-        }
-
-        function handleMouseDown(e) {
-            if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault();
-            sendMouseEvent("down", 0, 0, e.button);
-        }
-
-        function handleMouseUp(e) {
-            if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault();
-            sendMouseEvent("up", 0, 0, e.button);
-        }
-
-        window.addEventListener('contextmenu', e => e.preventDefault());
-
-        function sendMouseEvent(action, dx, dy, button) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", `/mouse_event?action=${action}&dx=${dx}&dy=${dy}&button=${button}`, true);
-            xhr.send();
-        }
-    </script>
 </body>
 </html>
