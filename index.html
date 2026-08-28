@@ -1,21 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Wirtualny Touchpad & Klawiatura</title>
+    <title>Un-Droid - Cloud Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { 
             margin: 0; padding: 0; background: #111; color: white; 
-            font-family: sans-serif; height: 100vh; overflow: hidden; 
-            display: flex; flex-direction: column; touch-action: none; 
+            font-family: sans-serif; height: 100vh; overflow: hidden; touch-action: none; 
         }
         
+        /* --- MENU (POCZEKALNIA) --- */
+        #lobby {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: #111; display: flex; flex-direction: column;
+            align-items: center; padding-top: 5vh; z-index: 20000; overflow-y: auto;
+        }
+        #lobby h1 { color: #4CAF50; margin-bottom: 30px; text-align: center; }
+        .vm-card {
+            background: #222; padding: 15px; margin: 10px; border-radius: 8px;
+            width: 90%; max-width: 400px; display: flex; justify-content: space-between; 
+            align-items: center; border: 1px solid #444; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .vm-card .vm-name { font-size: 18px; font-weight: bold; }
+        .vm-card .vm-status { font-size: 12px; color: #888; }
+        .vm-card button {
+            background: #4CAF50; color: white; border: none; padding: 10px 15px; 
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        .vm-card button:disabled { background: #555; cursor: not-allowed; color: #aaa;}
+        
+        /* --- INTERFEJS APLIKACJI (Schowany na starcie) --- */
+        #app-ui { display: none; height: 100vh; width: 100vw; flex-direction: column; position: relative; }
+        
+        /* Przycisk Wyjścia */
+        #btn-exit {
+            position: absolute; top: 10px; left: 10px; z-index: 10001;
+            background: red; color: white; border: none; padding: 8px 12px; 
+            border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+
         #video-container { 
             height: 40vh; width: 100vw; position: relative; background: #000; 
             border-bottom: 3px solid #333; transition: height 0.3s;
         }
         iframe { width: 100%; height: 100%; border: none; }
-        
         #mouse-capture-layer { display: none; }
 
         #controls-container { 
@@ -26,8 +54,7 @@
         .buttons-row { display: flex; height: 25%; width: 100%; gap: 10px; margin-bottom: 10px; }
         .btn { 
             flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; 
-            color: white; font-size: 16px; font-weight: bold; 
-            display: flex; align-items: center; justify-content: center; 
+            color: white; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; 
             user-select: none; touch-action: none; transition: background-color 0.1s;
         }
         
@@ -56,29 +83,94 @@
 </head>
 <body>
 
-    <div id="pc-notice">Kliknij by sterować myszką i klawiaturą (ESC by wyjść)</div>
-
-    <div id="video-container">
-        <!-- Zmień ten link na SWÓJ WŁASNY link z VDO.ninja -->
-        <iframe src="https://vdo.ninja/?view=DtDPYut&autoplay=1" allow="autoplay; picture-in-picture"></iframe>
-        <div id="mouse-capture-layer"></div>
+    <!-- MENU WYBORU MASZYNY -->
+    <div id="lobby">
+        <h1>Un-Droid Cloud</h1>
+        <div id="vm-list">Oczekiwanie na maszyny...</div>
     </div>
 
-    <div id="controls-container">
-        <div class="buttons-row">
-            <div id="btn-left" class="btn">Lewy Klik</div>
-            <div id="btn-right" class="btn">Prawy Klik</div>
+    <!-- INTERFEJS STEROWANIA -->
+    <div id="app-ui">
+        <button id="btn-exit" onclick="leaveVM()">Wyjdź</button>
+        <div id="pc-notice">Kliknij by sterować myszką i klawiaturą (ESC by odblokować)</div>
+
+        <div id="video-container">
+            <iframe id="video-feed" src="" allow="autoplay; picture-in-picture"></iframe>
+            <div id="mouse-capture-layer"></div>
         </div>
-        <div id="touchpad">
-            <p>TOUCHPAD</p>
-            <span>Jeździj palcem tutaj</span>
+
+        <div id="controls-container">
+            <div class="buttons-row">
+                <div id="btn-left" class="btn">Lewy Klik</div>
+                <div id="btn-right" class="btn">Prawy Klik</div>
+            </div>
+            <div id="touchpad">
+                <p>TOUCHPAD</p>
+                <span>Jeździj palcem tutaj</span>
+            </div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript">
         const socket = io(); 
+        
+        // --- LOGIKA LOBBY I MASZYN ---
+        const lobby = document.getElementById('lobby');
+        const appUi = document.getElementById('app-ui');
+        const vmListContainer = document.getElementById('vm-list');
+        const videoFeed = document.getElementById('video-feed');
 
+        socket.on('vm_list', (vms) => {
+            if (vms.length === 0) {
+                vmListContainer.innerHTML = '<p>Brak podłączonych maszyn.</p>';
+                return;
+            }
+            vmListContainer.innerHTML = '';
+            vms.forEach(vm => {
+                const isOccupied = vm.is_occupied;
+                const card = document.createElement('div');
+                card.className = 'vm-card';
+                card.innerHTML = `
+                    <div>
+                        <div class="vm-name">${vm.name}</div>
+                        <div class="vm-status" style="color: ${isOccupied ? '#ff4d4d' : '#4CAF50'}">
+                            ${isOccupied ? 'Zajęta przez innego gracza' : 'Dostępna'}
+                        </div>
+                    </div>
+                    <button ${isOccupied ? 'disabled' : ''} onclick="joinVM('${vm.id}')">
+                        ${isOccupied ? 'Zajęte' : 'Graj'}
+                    </button>
+                `;
+                vmListContainer.appendChild(card);
+            });
+        });
+
+        function joinVM(vm_id) {
+            socket.emit('join_vm', vm_id);
+        }
+
+        socket.on('join_success', (data) => {
+            lobby.style.display = 'none';
+            appUi.style.display = 'flex';
+            videoFeed.src = data.video_url; // Ładujemy unikalny link dla tej VM!
+        });
+
+        socket.on('join_error', (msg) => { alert(msg); });
+
+        function leaveVM() {
+            socket.emit('leave_vm');
+            appUi.style.display = 'none';
+            lobby.style.display = 'flex';
+            videoFeed.src = ""; // Wyłącza stream wideo
+        }
+
+        socket.on('vm_disconnected', () => {
+            alert("Maszyna została rozłączona!");
+            leaveVM();
+        });
+
+        // --- RESZTA LOGIKI (TOUCHPAD / KLAWIATURA) ---
         const pcNotice = document.getElementById('pc-notice');
         const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
         
@@ -98,7 +190,6 @@
             }
         }
 
-        // TOUCHPAD
         const touchpad = document.getElementById('touchpad');
         let lastTouchX = null, lastTouchY = null;
         const SENSITIVITY = 1.5;
@@ -124,8 +215,6 @@
             if (e.targetTouches.length === 0) { lastTouchX = null; lastTouchY = null; touchpad.style.backgroundColor = "#333"; }
         }, { passive: false });
 
-
-        // PRZYCISKI MYSZY
         function setupButton(btnId, buttonCode) {
             const btn = document.getElementById(btnId);
             btn.addEventListener('touchstart', (e) => {
@@ -143,8 +232,6 @@
         setupButton('btn-left', 0);
         setupButton('btn-right', 2);
 
-
-        // TRYB PC - MYSZ
         const captureLayer = document.getElementById('mouse-capture-layer');
         captureLayer.addEventListener('click', (e) => {
             if (e.pointerType === "mouse" || !isMobileOrTablet) captureLayer.requestPointerLock();
@@ -168,43 +255,21 @@
             if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
         });
 
-        // ==========================================
-        // NOWE: OBSŁUGA KLAWIATURY NA PC
-        // ==========================================
-        
-        // Czarna lista klawiszy, których NIE wysyłamy (według Twojego polecenia)
-        const blockedKeys = [
-            'Control', 'Alt', 'Shift', 'Meta', 'Tab', 'Insert', 'PrintScreen', 'Escape', 'OS'
-        ];
-
-        // Funkcja sprawdzająca, czy klawisz jest zabroniony (w tym F1-F12)
+        const blockedKeys = ['Control', 'Alt', 'Shift', 'Meta', 'Tab', 'Insert', 'PrintScreen', 'Escape', 'OS'];
         function isKeyAllowed(key) {
             if (blockedKeys.includes(key)) return false;
-            // Sprawdzamy czy to F1, F2, F3... F12 za pomocą tzw. Regexa
             if (/^F(1[0-2]|[1-9])$/.test(key)) return false;
             return true;
         }
 
         document.addEventListener('keydown', (e) => {
-            // Reaguj tylko wtedy, gdy myszka jest zablokowana na ekranie wideo (Tryb sterowania PC)
             if (document.pointerLockElement !== captureLayer) return;
-            
-            // Ignorujemy powtarzające się zdarzenia, gdy trzymasz klawisz
             if (e.repeat) return; 
-
-            if (isKeyAllowed(e.key)) {
-                e.preventDefault(); // Zapobiega działaniom przeglądarki (np. przewijaniu spacją)
-                socket.emit('key_event', { action: 'down', key: e.key });
-            }
+            if (isKeyAllowed(e.key)) { e.preventDefault(); socket.emit('key_event', { action: 'down', key: e.key }); }
         });
-
         document.addEventListener('keyup', (e) => {
             if (document.pointerLockElement !== captureLayer) return;
-            
-            if (isKeyAllowed(e.key)) {
-                e.preventDefault();
-                socket.emit('key_event', { action: 'up', key: e.key });
-            }
+            if (isKeyAllowed(e.key)) { e.preventDefault(); socket.emit('key_event', { action: 'up', key: e.key }); }
         });
     </script>
 </body>
