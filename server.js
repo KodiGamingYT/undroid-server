@@ -4,9 +4,9 @@ const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
-// Serwer HTTP potrzebny do podłączenia Socket.IO
+// Tworzymy serwer HTTP (wymagane przez Socket.IO)
 const server = http.createServer(app);
-// Inicjalizacja WebSockets
+// Inicjalizacja Socket.IO z obsługą CORS
 const io = new Server(server, {
     cors: { origin: "*" }
 });
@@ -20,13 +20,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Nasłuchiwanie połączeń Socket.IO
+// Nasłuchiwanie szybkich połączeń Socket.IO
 io.on('connection', (socket) => {
-    console.log('Nowe połączenie ustanowione:', socket.id);
+    console.log('Nawiązano nowe połączenie:', socket.id);
 
-    // Kiedy przeglądarka wyśle event 'mouse_event' (ruch myszki / kliknięcie)
+    // Kiedy przeglądarka wyśle ruch myszy/kliknięcie...
     socket.on('mouse_event', (data) => {
-        // Przekaż ten sam event NATYCHMIAST do wszystkich innych podłączonych klientów (do Twojego skryptu Python)
+        // ...natychmiast przekaż te dane do WSZYSTKICH innych podłączonych klientów (czyli do Pythona)
         socket.broadcast.emit('mouse_event', data);
     });
 
@@ -35,7 +35,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// Zwróć uwagę, że uruchamiamy 'server.listen', a nie 'app.listen'
+// Używamy server.listen, a nie app.listen!
 server.listen(PORT, () => {
-    console.log(`Hardware Mouse Server z WebSockets działa na porcie ${PORT}`);
+    console.log(`Un-Droid WebSockets Server działa na porcie ${PORT}`);
 });
