@@ -3,7 +3,7 @@
 <head>
     <title>Un-Droid - Real Android Online</title>
     <style>
-        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; touch-action: none; }
         
         #screen-container { 
             width: 100vw; 
@@ -11,19 +11,20 @@
             position: relative;
         }
 
-        /* Ramka WebRTC VDO.ninja na pełny ekran */
+        /* Ramka WebRTC VDO.ninja */
         iframe {
             width: 100% !important;
             height: 100% !important;
             border: none;
+            pointer-events: none; /* Kindle może próbować klikać w wideo, blokujemy to */
         }
 
-        /* Przezroczysta nakładka przechwytująca sprzętową mysz przed ramką wideo */
+        /* Przezroczysta nakładka łapiąca każdy dotyk i kliknięcie */
         #mouse-capture-layer {
             position: absolute;
             top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 9999;
-            background: rgba(0, 0, 0, 0);
+            background: rgba(0, 0, 0, 0.01); /* Prawie przezroczyste, by przeglądarka łapała kliknięcia */
         }
 
         #lock-notice {
@@ -36,31 +37,50 @@
 </head>
 <body>
 
-    <div id="lock-notice">Click on the screen to control the device (Click ESC to stop controlling)</div>
+    <div id="lock-notice">Tryb sterowania (Dotyk włączony / PC: Kliknij by zablokować mysz)</div>
 
     <div id="screen-container">
-        <!-- OSADZENIE ULTRA-SZYBKIEGO WEBRTC -->
-        <iframe id="video-feed" src="https://vdo.ninja/?view=DtDPYut" allow="autoplay; picture-in-picture"></iframe>
+        <!-- Zmień ten link na SWÓJ WŁASNY link z VDO.ninja -->
+        <iframe id="video-feed" src="https://vdo.ninja/?view=DtDPYut&autoplay=1&mute=1" allow="autoplay; picture-in-picture"></iframe>
         
-        <!-- Warstwa przechwytująca ruchy Pointer Lock -->
         <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
     </div>
 
-    <!-- Klient Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript">
-        // Nawiązanie natychmiastowego połączenia WebSockets
         const socket = io(); 
-
         const captureLayer = document.getElementById('mouse-capture-layer');
         const notice = document.getElementById('lock-notice');
 
-        // Aktywacja blokady kursora (Pointer Lock) po kliknięciu
-        captureLayer.addEventListener('click', () => {
-            captureLayer.requestPointerLock();
+        // ==========================================
+        // NOWE: OBSŁUGA EKRANÓW DOTYKOWYCH (KINDLE/SMARTFON)
+        // ==========================================
+        captureLayer.addEventListener('touchstart', (e) => {
+            // Zapobiegamy przewijaniu strony na czytniku
+            if (e.cancelable) e.preventDefault();
+            
+            let touch = e.touches[0];
+            let rect = captureLayer.getBoundingClientRect();
+            
+            // Obliczamy współrzędne procentowe (od 0.0 do 1.0)
+            let relX = (touch.clientX - rect.left) / rect.width;
+            let relY = (touch.clientY - rect.top) / rect.height;
+            
+            // Wysyłamy zdarzenie "tap"
+            socket.emit("tap_event", { x: relX, y: relY });
+        }, { passive: false });
+
+
+        // ==========================================
+        // STARE: OBSŁUGA FIZYCZNEJ MYSZKI NA PC
+        // ==========================================
+        captureLayer.addEventListener('click', (e) => {
+            // Aktywacja blokady tylko na PC (ignorowane przez dotyk)
+            if (e.pointerType === "mouse") {
+                captureLayer.requestPointerLock();
+            }
         });
 
-        // Śledzenie stanu blokady kursora
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === captureLayer) {
                 notice.style.display = 'none';
@@ -71,47 +91,32 @@
             }
         }, false);
 
-        let accumX = 0;
-        let accumY = 0;
-        let sendTimeout = null;
+        let accumX = 0; let accumY = 0; let sendTimeout = null;
 
-        // Przesyłanie przesunięcia myszy z drobnym buforem 15ms (daje płynne 60 FPS i nie zapycha łącza)
         function handleMouseMove(e) {
-            accumX += e.movementX;
-            accumY += e.movementY;
-
+            accumX += e.movementX; accumY += e.movementY;
             if (!sendTimeout) {
                 sendTimeout = setTimeout(() => {
                     sendMouseEvent("move", accumX, accumY, 0);
-                    accumX = 0;
-                    accumY = 0;
-                    sendTimeout = null;
+                    accumX = 0; accumY = 0; sendTimeout = null;
                 }, 15);
             }
         }
 
         function handleMouseDown(e) {
             if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault();
-            sendMouseEvent("down", 0, 0, e.button);
+            e.preventDefault(); sendMouseEvent("down", 0, 0, e.button);
         }
 
         function handleMouseUp(e) {
             if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault();
-            sendMouseEvent("up", 0, 0, e.button);
+            e.preventDefault(); sendMouseEvent("up", 0, 0, e.button);
         }
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Błyskawiczna wysyłka przez WebSockets (bez zapytań HTTP)
         function sendMouseEvent(action, dx, dy, button) {
-            socket.emit("mouse_event", { 
-                action: action, 
-                dx: dx, 
-                dy: dy, 
-                button: button 
-            });
+            socket.emit("mouse_event", { action: action, dx: dx, dy: dy, button: button });
         }
     </script>
 </body>
