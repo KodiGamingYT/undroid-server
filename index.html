@@ -82,9 +82,24 @@
             }
         }, false);
 
-        // 2. Przesyłanie względnego przesunięcia myszy (ruch dx, dy)
+        // Liczniki bufora ruchu myszy, aby nie zapchać darmowego Rendera
+        let accumX = 0;
+        let accumY = 0;
+        let sendTimeout = null;
+
+        // 2. Przesyłanie przesunięcia myszy z wbudowaną optymalizacją pakietów sieciowych
         function handleMouseMove(e) {
-            sendMouseEvent("move", e.movementX, e.movementY, 0);
+            accumX += e.movementX;
+            accumY += e.movementY;
+
+            if (!sendTimeout) {
+                sendTimeout = setTimeout(() => {
+                    sendMouseEvent("move", accumX, accumY, 0);
+                    accumX = 0;
+                    accumY = 0;
+                    sendTimeout = null;
+                }, 15); // Wysyłanie paczek ruchu co 15ms zapewnia idealną płynność myszy na PC
+            }
         }
 
         // 3. Przesyłanie wciśnięcia przycisku (Lewy = 0, Prawy = 2)
@@ -101,7 +116,7 @@
             sendMouseEvent("up", 0, 0, e.button);
         }
 
-        // Blokowanie wyskakiwania domyślnego menu Windowsa po kliknięciu prawym przyciskiem myszy
+        // Blokowanie systemowego menu podręcznego Windowsa po kliknięciu prawym przyciskiem myszy
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         function sendMouseEvent(action, dx, dy, button) {
