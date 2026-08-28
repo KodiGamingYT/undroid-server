@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Perfect Direct Embed System</title>
+    <title>Un-Droid - Official Twitch Embed System</title>
     <style>
         /* Rozciągamy widok na absolutnie 100% ekranu bez marginesów i pasków przewijania */
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
@@ -12,35 +12,58 @@
             position: relative;
         }
 
-        /* Ramka ładowania czystego wideo bezpośrednio przez autoryzowany serwer generatora */
-        iframe { 
-            width: 100% !important; 
-            height: 100% !important; 
+        /* Wymuszamy, aby wygenerowany przez Twitcha odtwarzacz zajął cały ekran */
+        #twitch-embed {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #twitch-embed iframe {
+            width: 100% !important;
+            height: 100% !important;
             border: none;
         }
     </style>
-    <script>
+    
+    <!-- 1. Ładowanie oficjalnego skryptu integracyjnego, który wkleiłeś -->
+    <script src="https://embed.twitch.tv/embed/v1.js"></script>
+</head>
+<body>
+
+    <!-- 2. Twój kontener na odtwarzacz wideo z wbudowaną funkcją łapania kliknięć -->
+    <div id="screen-container" onclick="handleScreenClick(event)">
+        <div id="twitch-embed"></div>
+    </div>
+
+    <script type="text/javascript">
+        // 3. Inicjalizacja oficjalnego obiektu Twitch.Embed z Twoimi parametrami
+        new Twitch.Embed("twitch-embed", {
+            width: "100%",
+            height: "100%",
+            channel: "undroid_project",
+            parent: ["undroid-server.onrender.com"], // <--- Jawnym parentem staje się Twój Render
+            layout: "video", // "video" całkowicie wyłącza czat Twitcha i zostawia sam czysty obraz!
+            autoplay: true,
+            muted: true
+        });
+
         function handleScreenClick(event) {
-            var iframeElement = document.getElementById("twitch-player");
-            var rect = iframeElement.getBoundingClientRect();
+            var embedContainer = document.getElementById("twitch-embed");
+            var rect = embedContainer.getBoundingClientRect();
             
-            // Pobieranie współrzędnych procentowych bezpośrednio z obszaru odtwarzacza
+            // Pobieranie ultra-precyzyjnych współrzędnych procentowych z dotknięcia ekranu
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
-            // Natychmiastowe wysłanie sygnału dotyku do serwera Render (0 sekund opóźnienia)
+            // Ograniczenie wartości w przedziale bezpiecznym 0.0 - 1.0
+            relativeX = Math.max(0, Math.min(1, relativeX));
+            relativeY = Math.max(0, Math.min(1, relativeY));
+            
+            // Natychmiastowe wysłanie sygnału dotyku do chmury (0 sekund opóźnienia)
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
         }
     </script>
-</head>
-<body>
-
-    <div id="screen-container" onclick="handleScreenClick(event)">
-        <!-- TWORZYSZ IDEALNY EMBED: Wykorzystujemy Twój bezpośredni link autoryzacyjny, aby Twitch zdjął blokady -->
-        <iframe id="twitch-player" src="https://player.twitch.tv/?autoplay=true&channel=undroid_project&height=100%25&parent=adiru3.github.io&referrer=https%3A%2F%2Fadiru3.github.io%2FTwitch-Embed-Generator%2F%3Fchannel%3Dundroid_project&width=100%25" frameborder="0" allowfullscreen="true" scrolling="no"></iframe>
-    </div>
-
 </body>
 </html>
