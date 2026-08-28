@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Hardware VNC System</title>
+    <title>Un-Droid - Hardware VNC Online System</title>
     <style>
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        /* Kontener na ekran VNC rozciągnięty na całą stronę */
         #vnc-canvas-container {
             width: 100vw;
             height: 100vh;
@@ -19,29 +18,29 @@
             object-fit: fill;
         }
     </style>
-    <!-- Ładowanie oficjalnego rdzenia noVNC z chmury CDN (Działa na Kindle!) -->
+    <!-- Ładowanie oficjalnego rdzenia noVNC z chmury CDN -->
     <script type="module">
         import RFB from 'https://jsdelivr.net';
 
         let rfb;
         function connectVNC() {
-            // Ponieważ darmowy Render nie ma stałego IP, łączymy się bezpośrednio 
-            // z adresem Twojego domowego komputera przez protokół Websocket.
-            // Zmień 'TWÓJ_DOMOWY_ADRES_IP' na Twoje publiczne IP (lub link z ngroka dla portu 8081)
-            const host = "https://052b9d7b06bb96c8-93-159-12-2.serveousercontent.com"; 
-            const port = "8081";
-            const password = "1234"; // Twoje hasło ustawione w UltraVNC
+            // TUTAJ: Wklejasz swój dokładny link HTTPS wygenerowany przez Pinggy z Kroku 1!
+            const tunnelUrl = "https://cvvwt-93-159-12-2.free.pinggy.net"; 
+            
+            // Zamiana na bezpieczny, w 100% szyfrowany online protokół wss://
+            const wsUrl = tunnelUrl.replace("https://", "wss://");
+            const password = "1234"; // Twoje hasło z UltraVNC
 
-            rfb = new RFB(document.getElementById('vnc-canvas-container'), `ws://${host}:${port}`, {
+            rfb = new RFB(document.getElementById('vnc-canvas-container'), wsUrl, {
                 credentials: { password: password }
             });
 
-            // Automatyczne skalowanie obrazu pod ekran Kindle/PC
+            // Automatyczne skalowanie obrazu pod ekrany mobilne, PC i Kindle
             rfb.scaleViewport = true;
             rfb.resizeSession = true;
 
             rfb.addEventListener("connect", () => {
-                console.log("Połączono pomyślnie z telefonem przez VNC bez lagów!");
+                console.log("Sukces! Połączono online przez bezpieczny tunel!");
             });
         }
 
@@ -50,7 +49,7 @@
 </head>
 <body>
 
-    <!-- W tym miejscu noVNC automatycznie wygeneruje bezlagowy touchpad i wideo -->
+    <!-- Miejsce na bezlagowy, szyfrowany obraz z telefonu -->
     <div id="vnc-canvas-container"></div>
 
 </body>
