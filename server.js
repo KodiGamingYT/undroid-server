@@ -1,31 +1,41 @@
 const express = require('express');
-const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
-const PORT = process.env.PORT || 10000;
 
-let mouseEvents = [];
+const app = express();
+// Serwer HTTP potrzebny do podłączenia Socket.IO
+const server = http.createServer(app);
+// Inicjalizacja WebSockets
+const io = new Server(server, {
+    cors: { origin: "*" }
+});
+
+const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 
-// Odbieranie sprzętowych akcji myszy z wirtualnego touchpada Pointer Lock
-app.get('/mouse_event', (req, res) => {
-    mouseEvents.push({
-        action: req.query.action,
-        dx: parseInt(req.query.dx || 0),
-        dy: parseInt(req.query.dy || 0),
-        button: parseInt(req.query.button || 0)
-    });
-    res.send("OK");
-});
-
-// Oddawanie zgromadzonych ruchów do skryptu w Pythonie
-app.get('/get_clicks', (req, res) => {
-    res.json(mouseEvents);
-    mouseEvents = []; // Błyskawiczne czyszczenie kolejki, aby uniknąć lagów
-});
-
+// Serwowanie pliku strony głównej
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Hardware Mouse Server active on port ${PORT}`));
+// Nasłuchiwanie połączeń Socket.IO
+io.on('connection', (socket) => {
+    console.log('Nowe połączenie ustanowione:', socket.id);
+
+    // Kiedy przeglądarka wyśle event 'mouse_event' (ruch myszki / kliknięcie)
+    socket.on('mouse_event', (data) => {
+        // Przekaż ten sam event NATYCHMIAST do wszystkich innych podłączonych klientów (do Twojego skryptu Python)
+        socket.broadcast.emit('mouse_event', data);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Klient odłączony:', socket.id);
+    });
+});
+
+// Zwróć uwagę, że uruchamiamy 'server.listen', a nie 'app.listen'
+server.listen(PORT, () => {
+    console.log(`Hardware Mouse Server z WebSockets działa na porcie ${PORT}`);
+});
