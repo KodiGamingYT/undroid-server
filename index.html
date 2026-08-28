@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Dynamic Embed System</title>
+    <title>Un-Droid - Perfect Direct Embed System</title>
     <style>
-        /* Rozciągamy widok na absolutnie 100% ekranu bez marginesów */
+        /* Rozciągamy widok na absolutnie 100% ekranu bez marginesów i pasków przewijania */
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
         #screen-container { 
@@ -12,7 +12,7 @@
             position: relative;
         }
 
-        /* Ramka ładująca gotowy generator bez błędów misconfigured */
+        /* Ramka ładowania czystego wideo bezpośrednio przez autoryzowany serwer generatora */
         iframe { 
             width: 100% !important; 
             height: 100% !important; 
@@ -24,11 +24,11 @@
             var iframeElement = document.getElementById("twitch-player");
             var rect = iframeElement.getBoundingClientRect();
             
-            // Pobieranie współrzędnych procentowych z kliknięcia
+            // Pobieranie współrzędnych procentowych bezpośrednio z obszaru odtwarzacza
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
-            // Natychmiastowe wysłanie sygnału dotyku do serwera Render
+            // Natychmiastowe wysłanie sygnału dotyku do serwera Render (0 sekund opóźnienia)
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
@@ -38,8 +38,8 @@
 <body>
 
     <div id="screen-container" onclick="handleScreenClick(event)">
-        <!-- OSADZENIE GENERATORA: Czysty link, który bez problemu odpala stream na każdym urządzeniu -->
-        <iframe id="twitch-player" src="https://adiru3.github.io/Twitch-Embed-Generator/?channel=undroid_project" frameborder="0" allowfullscreen="true" scrolling="no"></iframe>
+        <!-- TWORZYSZ IDEALNY EMBED: Wykorzystujemy Twój bezpośredni link autoryzacyjny, aby Twitch zdjął blokady -->
+        <iframe id="twitch-player" src="https://player.twitch.tv/?autoplay=true&channel=undroid_project&height=100%25&parent=adiru3.github.io&referrer=https%3A%2F%2Fadiru3.github.io%2FTwitch-Embed-Generator%2F%3Fchannel%3Dundroid_project&width=100%25" frameborder="0" allowfullscreen="true" scrolling="no"></iframe>
     </div>
 
 </body>
