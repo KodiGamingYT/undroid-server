@@ -1,82 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Un-Droid - Hardware VNC Online System</title>
     <style>
-        body { margin: 0; background-color: dimgrey; height: 100%; display: flex; flex-direction: column; }
-        html { height: 100%; }
-        #top_bar { background-color: #6e84a3; color: white; font: bold 12px Helvetica; padding: 6px 5px 4px 5px; border-bottom: 1px outset; }
-        #status { text-align: center; }
-        #sendCtrlAltDelButton { position: fixed; top: 0px; right: 0px; border: 1px outset; padding: 5px 5px 4px 5px; cursor: pointer; }
-        #screen { flex: 1; overflow: hidden; }
-        canvas { width: 100% !important; height: 100% !important; object-fit: fill; }
-    </style>
-
-    <script type="module" crossorigin="anonymous">
-        // POPRAWKA: Pobieramy rdzeń noVNC bezpośrednio ze sprawdzonego i bezbłędnego CDN
-        import RFB from 'https://jsdelivr.net';
-
-        let rfb;
-        let desktopName;
-
-        function connectedToServer(e) { status("Connected to " + desktopName); }
-        function disconnectedFromServer(e) {
-            if (e.detail.clean) { status("Disconnected"); } 
-            else { status("Something went wrong, connection is closed"); }
+        /* Rozciągamy widok na absolutnie 100% ekranu pod e-papier Kindle i PC */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            background-color: #1a1a1a; 
+            height: 100%; 
+            width: 100vw;
+            overflow: hidden; 
+            font-family: sans-serif;
         }
-
-        function credentialsAreRequired(e) {
-            // Automatycznie wysyłamy hasło podane w URL, jeśli nie ma – wyskoczy okienko
-            const pass = readQueryVariable('password', '1234');
-            rfb.sendCredentials({ password: pass });
-        }
-
-        function updateDesktopName(e) { desktopName = e.detail.name; }
-        function sendCtrlAltDel() { rfb.sendCtrlAltDel(); return false; }
-        function status(text) { document.getElementById('status').textContent = text; }
-
-        function readQueryVariable(name, defaultValue) {
-            const re = new RegExp('.*[?&]' + name + '=([^&#]*)'),
-                  match = document.location.href.match(re);
-            if (match) { return decodeURIComponent(match[1]); }
-            return defaultValue;
-        }
-
-        document.getElementById('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
-
-        // Czytamy parametry bezpośrednio z paska adresu przeglądarki!
-        const host = readQueryVariable('host', window.location.hostname);
-        let port = readQueryVariable('port', window.location.port);
-        const password = readQueryVariable('password', '1234');
-        const path = readQueryVariable('path', ''); // Czyścimy domyślne websockify pod Pinggy
-
-        status("Connecting");
-
-        let url;
-        if (window.location.protocol === "https:") { url = 'wss'; } 
-        else { url = 'ws'; }
         
-        url += '://' + host;
-        if(port) { url += ':' + port; }
-        url += '/' + path;
+        #vnc-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-        rfb = new RFB(document.getElementById('screen'), url, { credentials: { password: password } });
-
-        rfb.addEventListener("connect",  connectedToServer);
-        rfb.addEventListener("disconnect", disconnectedFromServer);
-        rfb.addEventListener("credentialsrequired", credentialsAreRequired);
-        rfb.addEventListener("desktopname", updateDesktopName);
-
-        rfb.viewOnly = readQueryVariable('view_only', false);
-        // Wymuszamy pełne skalowanie pod Kindle/PC
-        rfb.scaleViewport = true;
-    </script>
+        /* Wymuszamy, aby wygenerowany ekran z telefonu zajął całą stronę z zachowaniem proporcji */
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body>
-    <div id="top_bar">
-        <div id="status">Loading</div>
-        <div id="sendCtrlAltDelButton">Send CtrlAltDel</div>
-    </div>
-    <div id="screen"></div>
+
+    <!-- W tym miejscu noVNC automatycznie wygeneruje bezlagowe wideo i touchpad -->
+    <div id="vnc-container"></div>
+
+    <!-- Ładowanie inteligentnej logiki sieciowej z pliku script.js -->
+    <script type="module" src="script.js"></script>
+
 </body>
 </html>
