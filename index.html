@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Android Device Online</title>
+    <title>Un-Droid - Wirtualny Touchpad & Klawiatura</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { 
@@ -10,30 +10,20 @@
             display: flex; flex-direction: column; touch-action: none; 
         }
         
-        /* 1. SEKCJA WIDEO (DOMYŚLNIE DLA MOBILE/KINDLE) */
         #video-container { 
             height: 40vh; width: 100vw; position: relative; background: #000; 
             border-bottom: 3px solid #333; transition: height 0.3s;
         }
-        iframe { 
-            width: 100%; height: 100%; border: none; 
-            /* USUNIĘTO pointer-events: none; - teraz na telefonie można klikać w wideo! */
-        }
+        iframe { width: 100%; height: 100%; border: none; }
         
-        /* Ukrywamy niewidzialną warstwę na urządzeniach mobilnych */
-        #mouse-capture-layer { 
-            display: none; 
-        }
+        #mouse-capture-layer { display: none; }
 
-        /* 2. SEKCJA STEROWANIA (TOUCHPAD I PRZYCISKI) */
         #controls-container { 
             height: 60vh; width: 100vw; display: flex; flex-direction: column; 
             background: #222; padding: 10px; box-sizing: border-box;
         }
         
-        .buttons-row { 
-            display: flex; height: 25%; width: 100%; gap: 10px; margin-bottom: 10px; 
-        }
+        .buttons-row { display: flex; height: 25%; width: 100%; gap: 10px; margin-bottom: 10px; }
         .btn { 
             flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; 
             color: white; font-size: 16px; font-weight: bold; 
@@ -49,26 +39,14 @@
         #touchpad p { margin: 0; font-size: 24px; font-weight: bold; color: #888; pointer-events: none; }
         #touchpad span { margin-top: 5px; font-size: 12px; color: #666; pointer-events: none; }
 
-        /* ==================================================== */
-        /* MAGIA DLA PC: Włącza warstwę łapiącą mysz i chowa touchpad! */
-        /* ==================================================== */
-        body.pc-mode #controls-container {
-            display: none !important;
-        }
-        body.pc-mode #video-container {
-            height: 100vh !important;
-            border-bottom: none;
-        }
-        body.pc-mode iframe {
-            pointer-events: none; /* Na PC wyłączamy klikanie w wideo... */
-        }
+        body.pc-mode #controls-container { display: none !important; }
+        body.pc-mode #video-container { height: 100vh !important; border-bottom: none; }
+        body.pc-mode iframe { pointer-events: none; }
         body.pc-mode #mouse-capture-layer {
-            /* ...i pokazujemy warstwę, która blokuje kursor fizycznej myszki! */
             display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             z-index: 10; cursor: crosshair;
         }
 
-        /* Powiadomienie tylko dla trybu PC */
         #pc-notice {
             display: none; position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px;
@@ -78,13 +56,11 @@
 </head>
 <body>
 
-    <div id="pc-notice">Kliknij na ekran, by sterować myszką (Naciśnij ESC by wyjść)</div>
+    <div id="pc-notice">Kliknij by sterować myszką i klawiaturą (ESC by wyjść)</div>
 
     <div id="video-container">
         <!-- Zmień ten link na SWÓJ WŁASNY link z VDO.ninja -->
         <iframe src="https://vdo.ninja/?view=DtDPYut&autoplay=1&mute=1" allow="autoplay; picture-in-picture"></iframe>
-        
-        <!-- Niewidzialna warstwa chroniąca przed kliknięciem w VDO.ninja, działa TYLKO na PC -->
         <div id="mouse-capture-layer"></div>
     </div>
 
@@ -122,7 +98,7 @@
             }
         }
 
-        // --- OBSŁUGA TOUCHPADA (TYLKO DLA MOBILE) ---
+        // TOUCHPAD
         const touchpad = document.getElementById('touchpad');
         let lastTouchX = null, lastTouchY = null;
         const SENSITIVITY = 1.5;
@@ -136,39 +112,30 @@
 
         touchpad.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            if (lastTouchX === null || lastTouchY === null) return;
-            if (e.targetTouches.length === 0) return;
-            
+            if (lastTouchX === null || lastTouchY === null || e.targetTouches.length === 0) return;
             let touch = e.targetTouches[0];
             let currentX = touch.clientX; let currentY = touch.clientY;
-            
             sendBufferedMove((currentX - lastTouchX) * SENSITIVITY, (currentY - lastTouchY) * SENSITIVITY);
-            
             lastTouchX = currentX; lastTouchY = currentY;
         }, { passive: false });
 
         touchpad.addEventListener('touchend', (e) => {
             e.preventDefault();
-            if (e.targetTouches.length === 0) {
-                lastTouchX = null; lastTouchY = null;
-                touchpad.style.backgroundColor = "#333";
-            }
+            if (e.targetTouches.length === 0) { lastTouchX = null; lastTouchY = null; touchpad.style.backgroundColor = "#333"; }
         }, { passive: false });
 
 
-        // --- OBSŁUGA PRZYCISKÓW (TYLKO DLA MOBILE) ---
+        // PRZYCISKI MYSZY
         function setupButton(btnId, buttonCode) {
             const btn = document.getElementById(btnId);
             btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                btn.style.backgroundColor = "#888"; 
+                e.preventDefault(); btn.style.backgroundColor = "#888"; 
                 socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: buttonCode });
             }, { passive: false });
             
             ['touchend', 'touchcancel'].forEach(evt => {
                 btn.addEventListener(evt, (e) => {
-                    e.preventDefault();
-                    btn.style.backgroundColor = "#444"; 
+                    e.preventDefault(); btn.style.backgroundColor = "#444"; 
                     socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: buttonCode });
                 }, { passive: false });
             });
@@ -177,12 +144,10 @@
         setupButton('btn-right', 2);
 
 
-        // --- TRYB PC (MYSZKA SPRZĘTOWA) ---
+        // TRYB PC - MYSZ
         const captureLayer = document.getElementById('mouse-capture-layer');
         captureLayer.addEventListener('click', (e) => {
-            if (e.pointerType === "mouse" || !isMobileOrTablet) {
-                captureLayer.requestPointerLock();
-            }
+            if (e.pointerType === "mouse" || !isMobileOrTablet) captureLayer.requestPointerLock();
         });
 
         document.addEventListener('pointerlockchange', () => {
@@ -196,16 +161,49 @@
         }, false);
 
         function pcMouseMove(e) { sendBufferedMove(e.movementX, e.movementY); }
-        
         captureLayer.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement === captureLayer) {
-                socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: e.button });
+            if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: e.button });
+        });
+        captureLayer.addEventListener('mouseup', (e) => {
+            if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
+        });
+
+        // ==========================================
+        // NOWE: OBSŁUGA KLAWIATURY NA PC
+        // ==========================================
+        
+        // Czarna lista klawiszy, których NIE wysyłamy (według Twojego polecenia)
+        const blockedKeys = [
+            'Control', 'Alt', 'Shift', 'Meta', 'Tab', 'Insert', 'PrintScreen', 'Escape', 'OS'
+        ];
+
+        // Funkcja sprawdzająca, czy klawisz jest zabroniony (w tym F1-F12)
+        function isKeyAllowed(key) {
+            if (blockedKeys.includes(key)) return false;
+            // Sprawdzamy czy to F1, F2, F3... F12 za pomocą tzw. Regexa
+            if (/^F(1[0-2]|[1-9])$/.test(key)) return false;
+            return true;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // Reaguj tylko wtedy, gdy myszka jest zablokowana na ekranie wideo (Tryb sterowania PC)
+            if (document.pointerLockElement !== captureLayer) return;
+            
+            // Ignorujemy powtarzające się zdarzenia, gdy trzymasz klawisz
+            if (e.repeat) return; 
+
+            if (isKeyAllowed(e.key)) {
+                e.preventDefault(); // Zapobiega działaniom przeglądarki (np. przewijaniu spacją)
+                socket.emit('key_event', { action: 'down', key: e.key });
             }
         });
-        
-        captureLayer.addEventListener('mouseup', (e) => {
-            if (document.pointerLockElement === captureLayer) {
-                socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
+
+        document.addEventListener('keyup', (e) => {
+            if (document.pointerLockElement !== captureLayer) return;
+            
+            if (isKeyAllowed(e.key)) {
+                e.preventDefault();
+                socket.emit('key_event', { action: 'up', key: e.key });
             }
         });
     </script>
