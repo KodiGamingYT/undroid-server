@@ -1,123 +1,191 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Real Android Online</title>
+    <title>Un-Droid - Wirtualny Touchpad</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
-        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; touch-action: none; }
+        body, html { 
+            margin: 0; padding: 0; background: #111; color: white; 
+            font-family: sans-serif; height: 100vh; overflow: hidden; 
+            display: flex; flex-direction: column; touch-action: none; 
+        }
         
-        #screen-container { 
-            width: 100vw; 
-            height: 100vh; 
-            position: relative;
+        #video-container { 
+            height: 40vh; width: 100vw; position: relative; background: #000; 
+            border-bottom: 3px solid #333;
+        }
+        iframe { 
+            width: 100%; height: 100%; border: none; pointer-events: none; 
+        }
+        #mouse-capture-layer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 10; cursor: crosshair;
         }
 
-        /* Ramka WebRTC VDO.ninja */
-        iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none;
-            pointer-events: none; /* Kindle może próbować klikać w wideo, blokujemy to */
+        #controls-container { 
+            height: 60vh; width: 100vw; display: flex; flex-direction: column; 
+            background: #222; padding: 10px; box-sizing: border-box;
         }
-
-        /* Przezroczysta nakładka łapiąca każdy dotyk i kliknięcie */
-        #mouse-capture-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.01); /* Prawie przezroczyste, by przeglądarka łapała kliknięcia */
+        
+        .buttons-row { 
+            display: flex; height: 25%; width: 100%; gap: 10px; margin-bottom: 10px; 
         }
-
-        #lock-notice {
-            position: absolute;
-            top: 10px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px;
-            border-radius: 20px; font-size: 13px; z-index: 10000; pointer-events: none;
+        .btn { 
+            flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; 
+            color: white; font-size: 16px; font-weight: bold; 
+            display: flex; align-items: center; justify-content: center; 
+            user-select: none; touch-action: none; transition: background-color 0.1s;
         }
+        
+        #touchpad { 
+            flex: 1; background: #333; border: 2px dashed #666; border-radius: 10px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            user-select: none; touch-action: none;
+        }
+        #touchpad p { margin: 0; font-size: 24px; font-weight: bold; color: #888; pointer-events: none; }
+        #touchpad span { font-size: 12px; color: #666; margin-top: 5px; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div id="lock-notice">Tryb sterowania (Dotyk włączony / PC: Kliknij by zablokować mysz)</div>
-
-    <div id="screen-container">
+    <div id="video-container">
         <!-- Zmień ten link na SWÓJ WŁASNY link z VDO.ninja -->
-        <iframe id="video-feed" src="https://vdo.ninja/?view=DtDPYut&autoplay=1&mute=1" allow="autoplay; picture-in-picture"></iframe>
+        <iframe src="https://vdo.ninja/?view=DtDPYut&autoplay=1&mute=1" allow="autoplay; picture-in-picture"></iframe>
         
-        <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
+        <div id="mouse-capture-layer" title="Kliknij tu, aby zablokować mysz (Tryb PC)"></div>
+    </div>
+
+    <div id="controls-container">
+        <div class="buttons-row">
+            <div id="btn-left" class="btn">Lewy Klik</div>
+            <div id="btn-right" class="btn">Prawy Klik</div>
+        </div>
+        <div id="touchpad">
+            <p>TOUCHPAD</p>
+            <span>Jeździj palcem tutaj</span>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript">
         const socket = io(); 
-        const captureLayer = document.getElementById('mouse-capture-layer');
-        const notice = document.getElementById('lock-notice');
+
+        let accumX = 0, accumY = 0, sendTimeout = null;
+        function sendBufferedMove(dx, dy) {
+            accumX += dx; accumY += dy;
+            if (!sendTimeout) {
+                sendTimeout = setTimeout(() => {
+                    socket.emit("mouse_event", { 
+                        action: "move", 
+                        dx: Math.round(accumX), 
+                        dy: Math.round(accumY), 
+                        button: 0 
+                    });
+                    accumX = 0; accumY = 0; sendTimeout = null;
+                }, 25); 
+            }
+        }
 
         // ==========================================
-        // NOWE: OBSŁUGA EKRANÓW DOTYKOWYCH (KINDLE/SMARTFON)
+        // 1. OBSŁUGA TOUCHPADA (Z pełnym wsparciem Multitouch)
         // ==========================================
-        captureLayer.addEventListener('touchstart', (e) => {
-            // Zapobiegamy przewijaniu strony na czytniku
-            if (e.cancelable) e.preventDefault();
+        const touchpad = document.getElementById('touchpad');
+        let lastTouchX = null;
+        let lastTouchY = null;
+        const SENSITIVITY = 1.5;
+
+        touchpad.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Używamy targetTouches - ignorujemy palce na przyciskach!
+            let touch = e.targetTouches[0]; 
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+            touchpad.style.backgroundColor = "#444";
+        }, { passive: false });
+
+        touchpad.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (lastTouchX === null || lastTouchY === null) return;
+            if (e.targetTouches.length === 0) return;
             
-            let touch = e.touches[0];
-            let rect = captureLayer.getBoundingClientRect();
+            // Ponownie czytamy tylko palec na touchpadzie
+            let touch = e.targetTouches[0];
+            let currentX = touch.clientX;
+            let currentY = touch.clientY;
             
-            // Obliczamy współrzędne procentowe (od 0.0 do 1.0)
-            let relX = (touch.clientX - rect.left) / rect.width;
-            let relY = (touch.clientY - rect.top) / rect.height;
+            let dx = (currentX - lastTouchX) * SENSITIVITY;
+            let dy = (currentY - lastTouchY) * SENSITIVITY;
             
-            // Wysyłamy zdarzenie "tap"
-            socket.emit("tap_event", { x: relX, y: relY });
+            sendBufferedMove(dx, dy);
+            
+            lastTouchX = currentX;
+            lastTouchY = currentY;
+        }, { passive: false });
+
+        touchpad.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            // Jeśli zabraliśmy palec z touchpada
+            if (e.targetTouches.length === 0) {
+                lastTouchX = null;
+                lastTouchY = null;
+                touchpad.style.backgroundColor = "#333";
+            }
         }, { passive: false });
 
 
         // ==========================================
-        // STARE: OBSŁUGA FIZYCZNEJ MYSZKI NA PC
+        // 2. OBSŁUGA PRZYCISKÓW (Z pełnym wsparciem Multitouch)
         // ==========================================
+        function setupButton(btnId, buttonCode) {
+            const btn = document.getElementById(btnId);
+            
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.style.backgroundColor = "#888"; // Jaśniejszy kolor, żebyś widział że wciśnięty
+                socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: buttonCode });
+            }, { passive: false });
+            
+            // Odłapujemy puszczenie ekranu ORAZ wyjechanie poza przycisk (touchcancel)
+            ['touchend', 'touchcancel'].forEach(evt => {
+                btn.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    btn.style.backgroundColor = "#444"; // Powrót do starego koloru
+                    socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: buttonCode });
+                }, { passive: false });
+            });
+        }
+
+        setupButton('btn-left', 0);
+        setupButton('btn-right', 2);
+
+
+        // ==========================================
+        // 3. TRYB PC (Gdybyś otwierał stronę myszką)
+        // ==========================================
+        const captureLayer = document.getElementById('mouse-capture-layer');
         captureLayer.addEventListener('click', (e) => {
-            // Aktywacja blokady tylko na PC (ignorowane przez dotyk)
-            if (e.pointerType === "mouse") {
-                captureLayer.requestPointerLock();
-            }
+            if (e.pointerType === "mouse") captureLayer.requestPointerLock();
         });
 
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === captureLayer) {
-                notice.style.display = 'none';
-                document.addEventListener("mousemove", handleMouseMove, false);
+                document.addEventListener("mousemove", pcMouseMove, false);
             } else {
-                notice.style.display = 'block';
-                document.removeEventListener("mousemove", handleMouseMove, false);
+                document.removeEventListener("mousemove", pcMouseMove, false);
             }
         }, false);
 
-        let accumX = 0; let accumY = 0; let sendTimeout = null;
-
-        function handleMouseMove(e) {
-            accumX += e.movementX; accumY += e.movementY;
-            if (!sendTimeout) {
-                sendTimeout = setTimeout(() => {
-                    sendMouseEvent("move", accumX, accumY, 0);
-                    accumX = 0; accumY = 0; sendTimeout = null;
-                }, 15);
+        function pcMouseMove(e) { sendBufferedMove(e.movementX, e.movementY); }
+        captureLayer.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement === captureLayer) {
+                socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: e.button });
             }
-        }
-
-        function handleMouseDown(e) {
-            if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault(); sendMouseEvent("down", 0, 0, e.button);
-        }
-
-        function handleMouseUp(e) {
-            if (document.pointerLockElement !== captureLayer) return;
-            e.preventDefault(); sendMouseEvent("up", 0, 0, e.button);
-        }
-
-        window.addEventListener('contextmenu', e => e.preventDefault());
-
-        function sendMouseEvent(action, dx, dy, button) {
-            socket.emit("mouse_event", { action: action, dx: dx, dy: dy, button: button });
-        }
+        });
+        captureLayer.addEventListener('mouseup', (e) => {
+            if (document.pointerLockElement === captureLayer) {
+                socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
+            }
+        });
     </script>
 </body>
 </html>
