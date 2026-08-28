@@ -9,7 +9,7 @@
             font-family: sans-serif; height: 100vh; overflow: hidden; touch-action: none; 
         }
         
-        /* --- MENU (POCZEKALNIA) --- */
+        /* --- LOBBY MENU --- */
         #lobby {
             position: absolute; top:0; left:0; width:100%; height:100%;
             background: #111; display: flex; flex-direction: column;
@@ -29,13 +29,13 @@
         }
         .vm-card button:disabled { background: #555; cursor: not-allowed; color: #aaa;}
         
-        /* --- INTERFEJS APLIKACJI (Schowany na starcie) --- */
+        /* --- APP UI (Hidden initially) --- */
         #app-ui { display: none; height: 100vh; width: 100vw; flex-direction: column; position: relative; }
         
-        /* Przycisk Wyjścia */
+        /* Exit Button */
         #btn-exit {
             position: absolute; top: 10px; left: 10px; z-index: 10001;
-            background: red; color: white; border: none; padding: 8px 12px; 
+            background: #e74c3c; color: white; border: none; padding: 8px 12px; 
             border-radius: 5px; cursor: pointer; font-weight: bold;
         }
 
@@ -83,16 +83,16 @@
 </head>
 <body>
 
-    <!-- MENU WYBORU MASZYNY -->
+    <!-- LOBBY SCREEN -->
     <div id="lobby">
         <h1>Un-Droid Cloud</h1>
-        <div id="vm-list">Oczekiwanie na maszyny...</div>
+        <div id="vm-list">Waiting for machines...</div>
     </div>
 
-    <!-- INTERFEJS STEROWANIA -->
+    <!-- CONTROL UI -->
     <div id="app-ui">
-        <button id="btn-exit" onclick="leaveVM()">Wyjdź</button>
-        <div id="pc-notice">Kliknij by sterować myszką i klawiaturą (ESC by odblokować)</div>
+        <button id="btn-exit" onclick="leaveVM()">Exit</button>
+        <div id="pc-notice">Click here to control the mouse & keyboard (Press ESC to unlock)</div>
 
         <div id="video-container">
             <iframe id="video-feed" src="" allow="autoplay; picture-in-picture"></iframe>
@@ -101,12 +101,12 @@
 
         <div id="controls-container">
             <div class="buttons-row">
-                <div id="btn-left" class="btn">Lewy Klik</div>
-                <div id="btn-right" class="btn">Prawy Klik</div>
+                <div id="btn-left" class="btn">Left Click</div>
+                <div id="btn-right" class="btn">Right Click</div>
             </div>
             <div id="touchpad">
                 <p>TOUCHPAD</p>
-                <span>Jeździj palcem tutaj</span>
+                <span>Slide your finger here</span>
             </div>
         </div>
     </div>
@@ -115,7 +115,7 @@
     <script type="text/javascript">
         const socket = io(); 
         
-        // --- LOGIKA LOBBY I MASZYN ---
+        // --- LOBBY AND VM LOGIC ---
         const lobby = document.getElementById('lobby');
         const appUi = document.getElementById('app-ui');
         const vmListContainer = document.getElementById('vm-list');
@@ -123,7 +123,15 @@
 
         socket.on('vm_list', (vms) => {
             if (vms.length === 0) {
-                vmListContainer.innerHTML = '<p>Brak podłączonych maszyn.</p>';
+                vmListContainer.innerHTML = `
+                    <div style="background: #222; padding: 25px; border-radius: 8px; border: 2px dashed #555; text-align: center; width: 90%; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                        <h2 style="color: #aaa; margin-top: 0;">No active machines</h2>
+                        <p style="color: #777; font-size: 14px; line-height: 1.5;">
+                            All virtual machines are currently offline.<br><br>
+                            Run the <b>app.py</b> script on any computer and it will appear here automatically!
+                        </p>
+                    </div>
+                `;
                 return;
             }
             vmListContainer.innerHTML = '';
@@ -135,11 +143,11 @@
                     <div>
                         <div class="vm-name">${vm.name}</div>
                         <div class="vm-status" style="color: ${isOccupied ? '#ff4d4d' : '#4CAF50'}">
-                            ${isOccupied ? 'Zajęta przez innego gracza' : 'Dostępna'}
+                            ${isOccupied ? 'In use by another player' : 'Available'}
                         </div>
                     </div>
                     <button ${isOccupied ? 'disabled' : ''} onclick="joinVM('${vm.id}')">
-                        ${isOccupied ? 'Zajęte' : 'Graj'}
+                        ${isOccupied ? 'In Use' : 'Play'}
                     </button>
                 `;
                 vmListContainer.appendChild(card);
@@ -153,7 +161,7 @@
         socket.on('join_success', (data) => {
             lobby.style.display = 'none';
             appUi.style.display = 'flex';
-            videoFeed.src = data.video_url; // Ładujemy unikalny link dla tej VM!
+            videoFeed.src = data.video_url; // Load the unique URL for this VM
         });
 
         socket.on('join_error', (msg) => { alert(msg); });
@@ -162,15 +170,15 @@
             socket.emit('leave_vm');
             appUi.style.display = 'none';
             lobby.style.display = 'flex';
-            videoFeed.src = ""; // Wyłącza stream wideo
+            videoFeed.src = ""; // Stop the video stream
         }
 
         socket.on('vm_disconnected', () => {
-            alert("Maszyna została rozłączona!");
+            alert("The machine has been disconnected!");
             leaveVM();
         });
 
-        // --- RESZTA LOGIKI (TOUCHPAD / KLAWIATURA) ---
+        // --- CONTROLS LOGIC (TOUCHPAD & KEYBOARD) ---
         const pcNotice = document.getElementById('pc-notice');
         const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
         
