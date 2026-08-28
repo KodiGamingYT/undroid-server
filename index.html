@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid</title>
+    <title>Un-Droid - Dynamic Embed System</title>
     <style>
         /* Rozciągamy widok na absolutnie 100% ekranu bez marginesów */
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
@@ -12,7 +12,7 @@
             position: relative;
         }
 
-        /* Twój iframe rozciągnięty na 100% szerokości i wysokości strony z działającym playerem */
+        /* Ramka ładująca gotowy generator bez błędów misconfigured */
         iframe { 
             width: 100% !important; 
             height: 100% !important; 
@@ -24,11 +24,11 @@
             var iframeElement = document.getElementById("twitch-player");
             var rect = iframeElement.getBoundingClientRect();
             
-            // Pobieranie współrzędnych procentowych bezpośrednio z obszaru odtwarzacza
+            // Pobieranie współrzędnych procentowych z kliknięcia
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
-            // Natychmiastowe wysłanie kliknięcia do serwera Render
+            // Natychmiastowe wysłanie sygnału dotyku do serwera Render
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
@@ -38,8 +38,8 @@
 <body>
 
     <div id="screen-container" onclick="handleScreenClick(event)">
-  
-        <iframe id="twitch-player" src="https://player.twitch.tv/?channel=undroid_project&parent=www.onrender.com" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+        <!-- OSADZENIE GENERATORA: Czysty link, który bez problemu odpala stream na każdym urządzeniu -->
+        <iframe id="twitch-player" src="https://adiru3.github.io/Twitch-Embed-Generator/?channel=undroid_project" frameborder="0" allowfullscreen="true" scrolling="no"></iframe>
     </div>
 
 </body>
