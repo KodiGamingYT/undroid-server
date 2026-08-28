@@ -3,36 +3,36 @@ const app = express();
 const path = require('path');
 const PORT = process.env.PORT || 10000;
 
-let latestVideoChunk = null;
-let videoClients = [];
+let latestFrame = null;
+let clients = [];
 
-app.use(express.raw({ type: 'video/h264', limit: '20mb' }));
+app.use(express.raw({ type: 'image/webp', limit: '10mb' }));
 app.use(express.json());
 
-// Odbieranie zakodowanego wideo H.264 z Twojego PC
-app.post('/upload_video', (req, res) => {
-    latestVideoChunk = req.body;
+app.post('/upload_frame', (req, res) => {
+    latestFrame = req.body;
     res.send("OK");
 
-    // Rozsyłanie danych wideo do wszystkich podpiętych odtwarzaczy HTML5
-    videoClients.forEach(client => {
-        client.res.write(latestVideoChunk);
+    // Rozsyłanie klatek WebP do widzów
+    clients.forEach(client => {
+        client.res.write(`--frame\r\nContent-Type: image/webp\r\nContent-Length: ${latestFrame.length}\r\n\r\n`);
+        client.res.write(latestFrame);
+        client.res.write('\r\n');
     });
 });
 
-// Strumieniowanie wideo bezpośrednio do tagu <video> na stronie
-app.get('/video_stream', (req, res) => {
+app.get('/video_feed', (req, res) => {
     res.writeHead(200, {
-        'Content-Type': 'video/mp4',
+        'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
     });
 
     const clientId = Date.now();
-    videoClients.push({ id: clientId, res: res });
+    clients.push({ id: clientId, res: res });
 
     req.on('close', () => {
-        videoClients = videoClients.filter(client => client.id !== clientId);
+        clients = clients.filter(client => client.id !== clientId);
     });
 });
 
@@ -51,4 +51,4 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Server MP4 active on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server WebP active on port ${PORT}`));
