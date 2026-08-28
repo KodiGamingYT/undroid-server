@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Wirtualny Touchpad</title>
+    <title>Un-Droid - Android Device Online</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { 
@@ -16,14 +16,16 @@
             border-bottom: 3px solid #333; transition: height 0.3s;
         }
         iframe { 
-            width: 100%; height: 100%; border: none; pointer-events: none; 
+            width: 100%; height: 100%; border: none; 
+            /* USUNIĘTO pointer-events: none; - teraz na telefonie można klikać w wideo! */
         }
+        
+        /* Ukrywamy niewidzialną warstwę na urządzeniach mobilnych */
         #mouse-capture-layer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 10; cursor: crosshair;
+            display: none; 
         }
 
-        /* 2. SEKCJA STEROWANIA */
+        /* 2. SEKCJA STEROWANIA (TOUCHPAD I PRZYCISKI) */
         #controls-container { 
             height: 60vh; width: 100vw; display: flex; flex-direction: column; 
             background: #222; padding: 10px; box-sizing: border-box;
@@ -48,7 +50,7 @@
         #touchpad span { margin-top: 5px; font-size: 12px; color: #666; pointer-events: none; }
 
         /* ==================================================== */
-        /* MAGIA DLA PC: Ukrywa touchpad i powiększa wideo!     */
+        /* MAGIA DLA PC: Włącza warstwę łapiącą mysz i chowa touchpad! */
         /* ==================================================== */
         body.pc-mode #controls-container {
             display: none !important;
@@ -56,6 +58,14 @@
         body.pc-mode #video-container {
             height: 100vh !important;
             border-bottom: none;
+        }
+        body.pc-mode iframe {
+            pointer-events: none; /* Na PC wyłączamy klikanie w wideo... */
+        }
+        body.pc-mode #mouse-capture-layer {
+            /* ...i pokazujemy warstwę, która blokuje kursor fizycznej myszki! */
+            display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 10; cursor: crosshair;
         }
 
         /* Powiadomienie tylko dla trybu PC */
@@ -74,6 +84,7 @@
         <!-- Zmień ten link na SWÓJ WŁASNY link z VDO.ninja -->
         <iframe src="https://vdo.ninja/?view=DtDPYut&autoplay=1&mute=1" allow="autoplay; picture-in-picture"></iframe>
         
+        <!-- Niewidzialna warstwa chroniąca przed kliknięciem w VDO.ninja, działa TYLKO na PC -->
         <div id="mouse-capture-layer"></div>
     </div>
 
@@ -92,16 +103,12 @@
     <script type="text/javascript">
         const socket = io(); 
 
-        // ==========================================
-        // AUTO-WYKRYWANIE PC CZY MOBILE/KINDLE
-        // ==========================================
         const pcNotice = document.getElementById('pc-notice');
         const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
         
-        // Jeśli sprzęt nie jest urządzeniem mobilnym ani czytnikiem, włączamy tryb PC
         if (!isMobileOrTablet) {
             document.body.classList.add('pc-mode');
-            pcNotice.style.display = 'block'; // Pokazujemy instrukcję "Kliknij by sterować"
+            pcNotice.style.display = 'block'; 
         }
 
         let accumX = 0, accumY = 0, sendTimeout = null;
@@ -115,9 +122,7 @@
             }
         }
 
-        // ==========================================
-        // 1. OBSŁUGA TOUCHPADA (TYLKO DLA MOBILE)
-        // ==========================================
+        // --- OBSŁUGA TOUCHPADA (TYLKO DLA MOBILE) ---
         const touchpad = document.getElementById('touchpad');
         let lastTouchX = null, lastTouchY = null;
         const SENSITIVITY = 1.5;
@@ -151,9 +156,7 @@
         }, { passive: false });
 
 
-        // ==========================================
-        // 2. OBSŁUGA PRZYCISKÓW (TYLKO DLA MOBILE)
-        // ==========================================
+        // --- OBSŁUGA PRZYCISKÓW (TYLKO DLA MOBILE) ---
         function setupButton(btnId, buttonCode) {
             const btn = document.getElementById(btnId);
             btn.addEventListener('touchstart', (e) => {
@@ -174,12 +177,9 @@
         setupButton('btn-right', 2);
 
 
-        // ==========================================
-        // 3. TRYB PC (MYSZKA SPRZĘTOWA)
-        // ==========================================
+        // --- TRYB PC (MYSZKA SPRZĘTOWA) ---
         const captureLayer = document.getElementById('mouse-capture-layer');
         captureLayer.addEventListener('click', (e) => {
-            // Ignorujemy kliknięcia palcem w wideo, działamy tylko dla fizycznej myszki!
             if (e.pointerType === "mouse" || !isMobileOrTablet) {
                 captureLayer.requestPointerLock();
             }
@@ -187,10 +187,10 @@
 
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === captureLayer) {
-                pcNotice.style.display = 'none'; // Ukryj powiadomienie gdy zablokowano mysz
+                pcNotice.style.display = 'none'; 
                 document.addEventListener("mousemove", pcMouseMove, false);
             } else {
-                if (!isMobileOrTablet) pcNotice.style.display = 'block'; // Pokaż ponownie
+                if (!isMobileOrTablet) pcNotice.style.display = 'block'; 
                 document.removeEventListener("mousemove", pcMouseMove, false);
             }
         }, false);
