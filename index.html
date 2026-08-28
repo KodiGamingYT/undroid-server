@@ -11,15 +11,15 @@
             height: 100vh; 
         }
 
-        /* Obraz WebP na pełny ekran */
+        /* Obraz WebP rozciągnięty na całą stronę */
         img { 
             width: 100%; 
             height: 100%; 
             object-fit: fill; 
-            pointer-events: none; /* Ignoruje domyślne przeciąganie przeglądarki */
+            pointer-events: none; 
         }
 
-        /* Niewidzialny, wirtualny touchpad nałożony na całą stronę */
+        /* Niewidzialna nakładka dotykowa na całą stronę */
         #touch-overlay { 
             position: absolute; 
             top: 0; 
@@ -32,6 +32,13 @@
         }
     </style>
     <script>
+        // Samodzielne, błyskawiczne pobieranie klatki co 45ms (Bezpieczne dla telefonów i Kindle)
+        setInterval(function() {
+            var img = document.getElementById("live-stream-img");
+            // Dodajemy unikalny timestamp, żeby przeglądarka nie pobierała obrazka z pamięci podręcznej (Cache)
+            img.src = "/get_frame?t=" + new Date().getTime();
+        }, 45);
+
         function handleTouchpadClick(event) {
             var overlay = document.getElementById("touch-overlay");
             var rect = overlay.getBoundingClientRect();
@@ -48,10 +55,10 @@
 <body>
 
     <div id="screen-container">
-        <!-- Ultra lekki strumień obrazków WebP od Google -->
-        <img id="live-stream-img" src="/video_feed">
+        <!-- Obraz pobierany asynchronicznie przez JS -->
+        <img id="live-stream-img" src="/get_frame">
         
-        <!-- Twój niewidzialny touchpad na wierzchu -->
+        <!-- Niewidzialny touchpad na wierzchu -->
         <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
     </div>
 
