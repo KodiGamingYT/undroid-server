@@ -180,7 +180,7 @@
 
         // --- CONTROLS LOGIC (TOUCHPAD & KEYBOARD) ---
         const pcNotice = document.getElementById('pc-notice');
-       // const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
+        const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
         
         if (!isMobileOrTablet) {
             document.body.classList.add('pc-mode');
