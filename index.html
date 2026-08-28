@@ -30,12 +30,24 @@
 </head>
 <body>
 
-    <!-- 2. Twój kontener na odtwarzacz wideo z wbudowaną funkcją łapania kliknięć -->
-    <div id="screen-container" onclick="handleScreenClick(event)">
+    <!-- 2. Twój kontener na odtwarzacz wideo z wbudowaną funkcją łapania kliknięć i przeciągnięć -->
+    <div id="screen-container" onmousedown="saveStartPos(event)" onmouseup="handleScreenClick(event)">
         <div id="twitch-embed"></div>
     </div>
 
     <script type="text/javascript">
+        // Zmienne do przechowywania punktu startowego gestu touchpadu
+        let startX = 0;
+        let startY = 0;
+
+        // Zapamiętujemy miejsce wciśnięcia myszki/palca na ekranie
+        function saveStartPos(event) {
+            var embedContainer = document.getElementById("twitch-embed");
+            var rect = embedContainer.getBoundingClientRect();
+            startX = (event.clientX - rect.left) / rect.width;
+            startY = (event.clientY - rect.top) / rect.height;
+        }
+
         // 3. Inicjalizacja oficjalnego obiektu Twitch.Embed z Twoimi parametrami
         new Twitch.Embed("twitch-embed", {
             width: "100%",
@@ -47,21 +59,23 @@
             muted: true
         });
 
+        // Twoja główna funkcja - teraz rozbudowana o przekazywanie wektora ruchu dla swipe!
         function handleScreenClick(event) {
             var embedContainer = document.getElementById("twitch-embed");
             var rect = embedContainer.getBoundingClientRect();
             
-            // Pobieranie ultra-precyzyjnych współrzędnych procentowych z dotknięcia ekranu
-            var relativeX = (event.clientX - rect.left) / rect.width;
-            var relativeY = (event.clientY - rect.top) / rect.height;
+            // Pobieranie ultra-precyzyjnych współrzędnych procentowych z puszczenia ekranu (Koniec gestu)
+            var endX = (event.clientX - rect.left) / rect.width;
+            var endY = (event.clientY - rect.top) / rect.height;
             
             // Ograniczenie wartości w przedziale bezpiecznym 0.0 - 1.0
-            relativeX = Math.max(0, Math.min(1, relativeX));
-            relativeY = Math.max(0, Math.min(1, relativeY));
+            endX = Math.max(0, Math.min(1, endX));
+            endY = Math.max(0, Math.min(1, endY));
             
-            // Natychmiastowe wysłanie sygnału dotyku do chmury (0 sekund opóźnienia)
+            // Tworzymy adres URL przesyłający punkt STARTU (x1, y1) oraz KONCA (x2, y2)
+            // Dzięki temu Python na komputerze sam zdecyduje czy zrobić kliknięcie, czy płynny swipe!
             var xhr = new XMLHttpRequest();
-            xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
+            xhr.open("GET", "/click?x1=" + startX + "&y1=" + startY + "&x2=" + endX + "&y2=" + endY, true);
             xhr.send();
         }
     </script>
