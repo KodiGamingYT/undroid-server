@@ -1,44 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Un-Droid - Hardware VNC Online System</title>
+    <title>Un-Droid - WebRTC Zero Lag System</title>
     <style>
-        /* Rozciągamy widok na absolutnie 100% ekranu pod e-papier Kindle i PC */
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            background-color: #1a1a1a; 
-            height: 100%; 
-            width: 100vw;
-            overflow: hidden; 
-            font-family: sans-serif;
-        }
+        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        #vnc-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        #screen-container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
         }
 
-        /* Wymuszamy, aby wygenerowany ekran z telefonu zajął całą stronę z zachowaniem proporcji */
-        canvas {
+        /* Ramka WebRTC VDO.ninja na pełny ekran */
+        iframe {
             width: 100% !important;
             height: 100% !important;
-            object-fit: contain;
+            border: none;
+        }
+
+        /* Przezroczysta nakładka przechwytująca sprzętową mysz przed ramką wideo */
+        #mouse-capture-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0);
+        }
+
+        #lock-notice {
+            position: absolute;
+            top: 10px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px;
+            border-radius: 20px; font-size: 13px; z-index: 10000; pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- W tym miejscu noVNC automatycznie wygeneruje bezlagowe wideo i touchpad -->
-    <div id="vnc-container"></div>
+    <div id="lock-notice">Kliknij na ekran, aby przejąć kontrolę nad myszką (ESC, aby wyjść)</div>
 
-    <!-- Ładowanie inteligentnej logiki sieciowej z pliku script.js -->
-    <script type="module" src="script.js"></script>
+    <div id="screen-container">
+        <!-- 1. OSADZENIE ULTRA-SZYBKIEGO WEBRTC (Wklej tu swój link z kroku 1 i dopisz na końcu &autoplay=1&mute=1) -->
+        <iframe id="video-feed" src="https://vdo.ninja" allow="autoplay; picture-in-picture"></iframe>
+        
+        <!-- 2. Warstwa przechwytująca ruchy Pointer Lock -->
+        <div id="mouse-capture-layer" onmousedown="handleMouseDown(event)" onmouseup="handleMouseUp(event)"></div>
+    </div>
 
+    <script type="text/javascript">
+        const captureLayer = document.getElementById('mouse-capture-layer');
+        const notice = document.getElementById('lock-notice');
+
+        // Aktywacja blokady kursora (Pointer Lock) po kliknięciu
+        captureLayer.addEventListener('click', () => {
+            captureLayer.requestPointerLock();
+        });
+
+        // Śledzenie stanu blokady kursora
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === captureLayer) {
+                notice.style.display = 'none';
+                document.addEventListener("mousemove", handleMouseMove, false);
+            } else {
+                notice.style.display = 'block';
+                document.removeEventListener("mousemove", handleMouseMove, false);
+            }
+        }, false);
+
+        let accumX = 0;
+        let accumY = 0;
+        let sendTimeout = null;
+
+        // Przesyłanie przesunięcia myszy (bufor 15ms dla odciążenia sieci)
+        function handleMouseMove(e) {
+            accumX += e.movementX;
+            accumY += e.movementY;
+
+            if (!sendTimeout) {
+                sendTimeout = setTimeout(() => {
+                    sendMouseEvent("move", accumX, accumY, 0);
+                    accumX = 0;
+                    accumY = 0;
+                    sendTimeout = null;
+                }, 15);
+            }
+        }
+
+        function handleMouseDown(e) {
+            if (document.pointerLockElement !== captureLayer) return;
+            e.preventDefault();
+            sendMouseEvent("down", 0, 0, e.button);
+        }
+
+        function handleMouseUp(e) {
+            if (document.pointerLockElement !== captureLayer) return;
+            e.preventDefault();
+            sendMouseEvent("up", 0, 0, e.button);
+        }
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        function sendMouseEvent(action, dx, dy, button) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", `/mouse_event?action=${action}&dx=${dx}&dy=${dy}&button=${button}`, true);
+            xhr.send();
+        }
+    </script>
 </body>
 </html>
