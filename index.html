@@ -1,74 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - OBS Stream Touchpad</title>
+    <title>Un-Droid</title>
     <style>
+        /* Rozciągamy widok na absolutnie 100% ekranu bez marginesów */
         body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
         
         #screen-container { 
-            position: relative; 
             width: 100vw; 
             height: 100vh; 
+            position: relative;
         }
 
-        /* Kontener na oficjalny odtwarzacz Twitcha */
-        #twitch-embed {
-            width: 100%;
-            height: 100%;
-        }
-        
-        /* Wymuszamy, aby ramka wideo była na pełny ekran i ignorowała kliknięcia */
-        #twitch-embed iframe {
-            width: 100% !important;
-            height: 100% !important;
-            pointer-events: none !important;
-        }
-
-        /* Niewidzialny wirtualny touchpad nałożony idealnie na film */
-        #touch-overlay { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            z-index: 999; 
-            cursor: crosshair; 
-            background: rgba(0,0,0,0); 
+        /* Twój iframe rozciągnięty na 100% szerokości i wysokości strony z działającym playerem */
+        iframe { 
+            width: 100% !important; 
+            height: 100% !important; 
+            border: none;
         }
     </style>
-    
-    <!-- Ładowanie oficjalnego skryptu integracyjnego od Twitcha, który omija blokady parent -->
-    <script src="https://twitch.tv"></script>
-</head>
-<body>
-
-    <div id="screen-container">
-        <!-- Miejsce, w które skrypt automatycznie wstrzyknie wideo -->
-        <div id="twitch-embed"></div>
-        
-        <!-- Niewidzialna nakładka dotykowa na wierzchu filmu -->
-        <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
-    </div>
-
-    <script type="text/javascript">
-        // Inicjalizacja odtwarzacza Twitch (Automatycznie autoryzuje domenę na żywo)
-        new Twitch.Player("twitch-embed", {
-            channel: "undroid_project",
-            muted: true,
-            controls: false
-        });
-
-        function handleTouchpadClick(event) {
-            var overlay = document.getElementById("touch-overlay");
-            var rect = overlay.getBoundingClientRect();
+    <script>
+        function handleScreenClick(event) {
+            var iframeElement = document.getElementById("twitch-player");
+            var rect = iframeElement.getBoundingClientRect();
             
+            // Pobieranie współrzędnych procentowych bezpośrednio z obszaru odtwarzacza
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
+            // Natychmiastowe wysłanie kliknięcia do serwera Render
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
         }
     </script>
+</head>
+<body>
+
+    <div id="screen-container" onclick="handleScreenClick(event)">
+  
+        <iframe id="twitch-player" src="https://player.twitch.tv/?channel=undroid_project&parent=www.onrender.com" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+    </div>
+
 </body>
 </html>
