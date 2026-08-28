@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+        <!DOCTYPE html>
 <html>
 <head>
     <title>Un-Droid - Hardware Mouse System</title>
@@ -39,11 +40,11 @@
     </style>
     
     <!-- PAMIĘTAM: Dokładnie ten oficjalny skrypt osadzania od Twitcha -->
-    <script src="https://embed.twitch.tv/embed/v1.js"></script>
+       <script src="https://embed.twitch.tv/embed/v1.js"></script>
 </head>
 <body>
 
-    <div id="lock-notice">Kliknij na ekran, aby zablokować mysz i przejąć kontrolę (ESC, aby wyjść)</div>
+    <div id="lock-notice">Kliknij na ekran, aby włączyć stream i zablokować mysz (ESC, aby wyjść)</div>
 
     <div id="screen-container">
         <div id="twitch-embed"></div>
@@ -54,9 +55,10 @@
     <script type="text/javascript">
         const captureLayer = document.getElementById('mouse-capture-layer');
         const notice = document.getElementById('lock-notice');
+        let twitchPlayerInstance = null;
 
         // Inicjalizacja oficjalnego obiektu Twitch.Embed z Twoim jawnym parentem Render
-        new Twitch.Embed("twitch-embed", {
+           new Twitch.Embed("twitch-embed", {
             width: "100%",
             height: "100%",
             channel: "undroid_project",
@@ -66,8 +68,28 @@
             muted: true
         });
 
-        // 1. Aktywacja blokady kursora (Pointer Lock) po kliknięciu na stronę
+        // Czekamy, aż Twitch wygeneruje player, żebyśmy mogli nim sterować z kodu JavaScript
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                var iframe = document.querySelector('#twitch-embed iframe');
+                if (iframe) {
+                    twitchPlayerInstance = new Twitch.Player("twitch-embed");
+                }
+            }, 1000);
+        });
+
+        // 1. Aktywacja wideo + blokada kursora (Pointer Lock) po pierwszym kliknięciu
         captureLayer.addEventListener('click', () => {
+            // Jeśli odtwarzacz Twitcha jest załadowany, siłą odpalamy wideo przez kod JS
+            if (twitchPlayerInstance) {
+                try {
+                    twitchPlayerInstance.play();
+                } catch(e) {
+                    console.log("Twitch player play command failed, retrying...");
+                }
+            }
+            
+            // Włączamy blokadę myszy
             captureLayer.requestPointerLock();
         });
 
@@ -87,7 +109,7 @@
         let accumY = 0;
         let sendTimeout = null;
 
-        // 2. Przesyłanie przesunięcia myszy z wbudowaną optymalizacją pakietów sieciowych
+        // 2. Przesyłanie przesunięcia myszy
         function handleMouseMove(e) {
             accumX += e.movementX;
             accumY += e.movementY;
@@ -98,7 +120,7 @@
                     accumX = 0;
                     accumY = 0;
                     sendTimeout = null;
-                }, 15); // Wysyłanie paczek ruchu co 15ms zapewnia idealną płynność myszy na PC
+                }, 15); // Wysyłanie paczek ruchu co 15ms zapewnia idealną płynność
             }
         }
 
@@ -116,7 +138,7 @@
             sendMouseEvent("up", 0, 0, e.button);
         }
 
-        // Blokowanie systemowego menu podręcznego Windowsa po kliknięciu prawym przyciskiem myszy
+        // Blokowanie systemowego menu kontekstowego Windowsa po kliknięciu prawym przyciskiem myszy
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         function sendMouseEvent(action, dx, dy, button) {
