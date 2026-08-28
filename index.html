@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - H.264 Touchpad System</title>
+    <title>Un-Droid - WebP Touchpad System</title>
     <style>
-        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; background: black; width: 100vw; height: 100vh; overflow: hidden; }
         
         #screen-container { 
             position: relative; 
@@ -11,15 +11,15 @@
             height: 100vh; 
         }
 
-        /* 1. Odtwarzacz MP4/H.264 na pełny ekran z pełną płynnością FPS */
-        video { 
+        /* Obraz WebP na pełny ekran */
+        img { 
             width: 100%; 
             height: 100%; 
             object-fit: fill; 
-            pointer-events: none; /* Ukrywa domyślne menu wideo przeglądarki */
+            pointer-events: none; /* Ignoruje domyślne przeciąganie przeglądarki */
         }
 
-        /* 2. Twój pomysł: Niewidzialny wirtualny touchpad na całą stronę */
+        /* Niewidzialny, wirtualny touchpad nałożony na całą stronę */
         #touch-overlay { 
             position: absolute; 
             top: 0; 
@@ -28,7 +28,7 @@
             height: 100vh; 
             z-index: 999; 
             cursor: crosshair; 
-            background: rgba(0,0,0,0); /* W pełni przezroczysta warstwa łapiąca dotyk */
+            background: rgba(0,0,0,0); 
         }
     </style>
     <script>
@@ -36,11 +36,9 @@
             var overlay = document.getElementById("touch-overlay");
             var rect = overlay.getBoundingClientRect();
             
-            // Pobieranie współrzędnych z wirtualnego touchpada na pełnym ekranie
             var relativeX = (event.clientX - rect.left) / rect.width;
             var relativeY = (event.clientY - rect.top) / rect.height;
             
-            // Wysłanie współrzędnych do serwera Render
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "/click?x=" + relativeX + "&y=" + relativeY, true);
             xhr.send();
@@ -50,12 +48,10 @@
 <body>
 
     <div id="screen-container">
-        <!-- Płynny odtwarzacz wideo w chmurze H.264 -->
-        <video autoplay muted playsinline id="live-video">
-            <source src="/video_stream" type="video/mp4">
-        </video>
+        <!-- Ultra lekki strumień obrazków WebP od Google -->
+        <img id="live-stream-img" src="/video_feed">
         
-        <!-- Niewidzialna nakładka dotykowa na całą stronę -->
+        <!-- Twój niewidzialny touchpad na wierzchu -->
         <div id="touch-overlay" onclick="handleTouchpadClick(event)"></div>
     </div>
 
