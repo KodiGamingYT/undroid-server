@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Cloud - Virtual Machines and real devices for Kindles</title>
+    <title>Un-Droid - Cloud Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { margin: 0; padding: 0; background: #111; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; touch-action: none; }
@@ -17,7 +17,6 @@
         #video-container { height: 40vh; width: 100vw; position: relative; background: #000; border-bottom: 3px solid #333; transition: height 0.3s; }
         iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
         
-        /* Warstwa dotykowa dla Androida */
         #touchscreen-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
 
         #controls-container { height: 60vh; width: 100vw; display: flex; flex-direction: column; background: #222; padding: 10px; box-sizing: border-box; }
@@ -25,7 +24,6 @@
         .btn { flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; user-select: none; }
         #touchpad { flex: 1; background: #333; border: 2px dashed #666; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; }
 
-        /* Tryb PC / Pełny ekran */
         body.fullscreen-mode #controls-container { display: none !important; }
         body.fullscreen-mode #video-container { height: 100vh !important; border-bottom: none; }
     </style>
@@ -33,7 +31,7 @@
 <body>
     <div id="lobby">
         <h1 style="color:#4CAF50;">Un-Droid Cloud</h1>
-        <div id="vm-list">Waiting...</div>
+        <div id="vm-list">Loading...</div>
     </div>
 
     <div id="app-ui">
@@ -54,10 +52,19 @@
         const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth <= 1024);
 
         socket.on('vm_list', (vms) => {
+            if (vms.length === 0) {
+                document.getElementById('vm-list').innerHTML = `
+                    <div style="background: #222; padding: 25px; border-radius: 8px; text-align: center; border: 1px dashed #555;">
+                        <h3 style="color: #aaa;">No active machines</h3>
+                        <p style="color: #777; font-size: 14px;">All virtual machines are currently offline.</p>
+                    </div>`;
+                return;
+            }
+
             document.getElementById('vm-list').innerHTML = vms.map(vm => `
                 <div class="vm-card">
-                    <div><b>${vm.name}</b><br><small>${vm.os.toUpperCase()} | ${vm.is_occupied ? 'Zajęte' : 'Wolne'}</small></div>
-                    <button ${vm.is_occupied ? 'disabled' : ''} onclick="joinVM('${vm.id}')">Graj</button>
+                    <div><b>${vm.name}</b><br><small>${vm.os.toUpperCase()} | ${vm.is_occupied ? 'In Use' : 'Available'}</small></div>
+                    <button ${vm.is_occupied ? 'disabled' : ''} onclick="joinVM('${vm.id}')">Play</button>
                 </div>
             `).join('');
         });
@@ -70,19 +77,15 @@
             document.getElementById('app-ui').style.display = 'flex';
             document.getElementById('video-feed').src = data.video_url;
 
-            // LOGIKA WYBORU INTERFEJSU
             if (data.os === 'android') {
-                // Tryb Android: Pełny ekran wideo, włączona warstwa dotykowa, brak touchpada
                 document.body.classList.add('fullscreen-mode');
                 document.getElementById('touchscreen-layer').style.display = 'block';
             } else {
-                // Tryb Desktop (Windows/Linux)
                 document.getElementById('touchscreen-layer').style.display = 'none';
-                if (!isMobileOrTablet) document.body.classList.add('fullscreen-mode'); // PC ma pełny ekran i mysz
+                if (!isMobileOrTablet) document.body.classList.add('fullscreen-mode'); 
             }
         });
 
-        // --- OBSŁUGA BEZPOŚREDNIEGO DOTYKU (DLA ANDROIDA) ---
         const touchLayer = document.getElementById('touchscreen-layer');
         touchLayer.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -93,7 +96,6 @@
             socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
         }, {passive: false});
 
-        // --- STARY TOUCHPAD (DLA WINDOWS/LINUX NA MOBILE) ---
         let accumX = 0, accumY = 0, sendTimeout = null;
         function sendBufferedMove(dx, dy) {
             accumX += dx; accumY += dy;
