@@ -14,13 +14,25 @@
         #app-ui { display: none; height: 100vh; width: 100vw; flex-direction: column; position: relative; }
         #btn-exit { position: absolute; top: 10px; left: 10px; z-index: 10001; background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
 
-        #video-container { height: 40vh; width: 100vw; position: relative; background: #000; border-bottom: 3px solid #333; transition: height 0.3s; }
-        iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
+        #video-container { height: 40vh; width: 100vw; position: relative; background: #000; border-bottom: 3px solid #333; transition: height 0.3s; display: flex; justify-content: center; align-items: center;}
         
-        /* Warstwa Bezpośredniego Dotyku dla Androida (Emulatory) */
-        #touchscreen-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        iframe { position: absolute; width: 100%; height: 100%; border: none; pointer-events: none; }
         
-        /* Warstwa blokady myszki PC (Desktop Mode) */
+        /* 
+           NOWE PODEJŚCIE: Warstwa dotykowa ma proporcje 9:16 (jak Twój emulator)
+           Będzie się idealnie pokrywać z wideo z VDO.ninja, ignorując czarne pasy!
+        */
+        #touchscreen-layer { 
+            display: none; 
+            position: relative; 
+            aspect-ratio: 9 / 16; 
+            max-width: 100%; 
+            max-height: 100%; 
+            width: 100%; /* Elastyczne skalowanie */
+            z-index: 10; 
+            /* background: rgba(255, 0, 0, 0.2); ODKOMENTUJ TĘ LINIĘ ABY ZOBACZYĆ STREFĘ DOTYKU (NA CZERWONO) */
+        }
+        
         #mouse-capture-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; cursor: crosshair; }
 
         #controls-container { height: 60vh; width: 100vw; display: flex; flex-direction: column; background: #222; padding: 10px; box-sizing: border-box; }
@@ -28,7 +40,6 @@
         .btn { flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; user-select: none; }
         #touchpad { flex: 1; background: #333; border: 2px dashed #666; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; }
 
-        /* MAGIA CSS - Tryb pełnoekranowy wyłącza sekcję ze starym touchpadem! */
         body.fullscreen-mode #controls-container { display: none !important; }
         body.fullscreen-mode #video-container { height: 100vh !important; border-bottom: none; }
         
@@ -47,7 +58,7 @@
         
         <div id="video-container">
             <iframe id="video-feed" src="" allow="autoplay; picture-in-picture"></iframe>
-            <!-- Osobne warstwy do różnego rodzaju maszyn -->
+            <!-- Wyśrodkowana strefa dopasowana pod Emulator -->
             <div id="touchscreen-layer"></div>
             <div id="mouse-capture-layer"></div>
         </div>
@@ -97,33 +108,25 @@
             document.getElementById('app-ui').style.display = 'flex';
             document.getElementById('video-feed').src = data.video_url;
 
-            // ====================================================
-            // GŁÓWNA LOGIKA ROZPOZNAWANIA URZĄDZENIA I INTERFEJSU
-            // ====================================================
             if (data.os === 'android') {
-                // Jeśli maszyna to Android -> Dajemy na cały ekran + aktywna warstwa Touchscreen
                 document.body.classList.add('fullscreen-mode');
                 document.getElementById('touchscreen-layer').style.display = 'block';
                 document.getElementById('mouse-capture-layer').style.display = 'none';
                 document.getElementById('pc-notice').style.display = 'none';
             } else {
-                // Jeśli maszyna to Windows/Linux
                 document.getElementById('touchscreen-layer').style.display = 'none';
                 
                 if (!isMobileOrTablet) {
-                    // Odpalasz na komputerze PC -> Pokazuje się warstwa blokująca mysz w środku ekranu
                     document.body.classList.add('fullscreen-mode');
                     document.getElementById('mouse-capture-layer').style.display = 'block';
                     document.getElementById('pc-notice').style.display = 'block';
                 } else {
-                    // Odpalasz na telefonie Windowsa -> Ekran dzieli się na pół (Wideo + Touchpad)
                     document.getElementById('mouse-capture-layer').style.display = 'none';
                     document.getElementById('pc-notice').style.display = 'none';
                 }
             }
         });
 
-        // --- OBSŁUGA BEZPOŚREDNIEGO DOTYKU (DLA ANDROIDA) ---
         const touchLayer = document.getElementById('touchscreen-layer');
         touchLayer.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -134,7 +137,6 @@
             socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
         }, {passive: false});
         
-        // Dodana możliwość "klikania myszką po Androidzie", jeśli odpalisz tę stronę na PC
         touchLayer.addEventListener('mousedown', (e) => {
             e.preventDefault();
             const rect = touchLayer.getBoundingClientRect();
@@ -143,7 +145,6 @@
             socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
         });
 
-        // --- STARY TOUCHPAD (DLA ZDALNEGO PC ODPALANEGO NA TELEFONIE) ---
         let accumX = 0, accumY = 0, sendTimeout = null;
         function sendBufferedMove(dx, dy) {
             accumX += dx; accumY += dy;
@@ -166,8 +167,6 @@
         document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); socket.emit("mouse_event", { action: "down", button: 0 }); });
         document.getElementById('btn-left').addEventListener('touchend', e => { e.preventDefault(); socket.emit("mouse_event", { action: "up", button: 0 }); });
 
-
-        // --- OBSŁUGA GRACZA NA PC (BLOKADA MYSZKI I KLAWIATURY DO WINDOWS/LINUX) ---
         const captureLayer = document.getElementById('mouse-capture-layer');
         const pcNotice = document.getElementById('pc-notice');
         
