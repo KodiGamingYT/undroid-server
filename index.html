@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Cloud - Cloud Platform</title>
+    <title>Un-Droid - Cloud Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { margin: 0; padding: 0; background: #111; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; touch-action: none; }
@@ -17,10 +17,10 @@
         #video-container { height: 40vh; width: 100vw; position: relative; background: #000; border-bottom: 3px solid #333; transition: height 0.3s; }
         iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
         
-        /* Warstwa dotykowa dla Androida (Domyślnie ukryta) */
+        /* Warstwa Bezpośredniego Dotyku dla Androida (Emulatory) */
         #touchscreen-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
         
-        /* Warstwa łapiąca myszkę na PC (Domyślnie ukryta) */
+        /* Warstwa blokady myszki PC (Desktop Mode) */
         #mouse-capture-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; cursor: crosshair; }
 
         #controls-container { height: 60vh; width: 100vw; display: flex; flex-direction: column; background: #222; padding: 10px; box-sizing: border-box; }
@@ -28,7 +28,7 @@
         .btn { flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; user-select: none; }
         #touchpad { flex: 1; background: #333; border: 2px dashed #666; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; }
 
-        /* --- TRYB PC (FULLSCREEN) --- */
+        /* MAGIA CSS - Tryb pełnoekranowy wyłącza sekcję ze starym touchpadem! */
         body.fullscreen-mode #controls-container { display: none !important; }
         body.fullscreen-mode #video-container { height: 100vh !important; border-bottom: none; }
         
@@ -37,7 +37,7 @@
 </head>
 <body>
     <div id="lobby">
-        <h1 style="color:#4CAF50;">Un-Cloud</h1>
+        <h1 style="color:#4CAF50;">Un-Droid Cloud</h1>
         <div id="vm-list">Loading...</div>
     </div>
 
@@ -47,6 +47,7 @@
         
         <div id="video-container">
             <iframe id="video-feed" src="" allow="autoplay; picture-in-picture"></iframe>
+            <!-- Osobne warstwy do różnego rodzaju maszyn -->
             <div id="touchscreen-layer"></div>
             <div id="mouse-capture-layer"></div>
         </div>
@@ -96,31 +97,33 @@
             document.getElementById('app-ui').style.display = 'flex';
             document.getElementById('video-feed').src = data.video_url;
 
-            // LOGIKA WYBORU INTERFEJSU
+            // ====================================================
+            // GŁÓWNA LOGIKA ROZPOZNAWANIA URZĄDZENIA I INTERFEJSU
+            // ====================================================
             if (data.os === 'android') {
-                // Tryb Android (Telefon w chmurze): Pełny ekran, aktywny dotyk
+                // Jeśli maszyna to Android -> Dajemy na cały ekran + aktywna warstwa Touchscreen
                 document.body.classList.add('fullscreen-mode');
                 document.getElementById('touchscreen-layer').style.display = 'block';
                 document.getElementById('mouse-capture-layer').style.display = 'none';
                 document.getElementById('pc-notice').style.display = 'none';
             } else {
-                // Tryb Desktop (Windows/Linux w chmurze)
+                // Jeśli maszyna to Windows/Linux
                 document.getElementById('touchscreen-layer').style.display = 'none';
                 
                 if (!isMobileOrTablet) {
-                    // Gracz siedzi na PC: Pełny ekran, aktywna warstwa łapiąca myszkę
+                    // Odpalasz na komputerze PC -> Pokazuje się warstwa blokująca mysz w środku ekranu
                     document.body.classList.add('fullscreen-mode');
                     document.getElementById('mouse-capture-layer').style.display = 'block';
                     document.getElementById('pc-notice').style.display = 'block';
                 } else {
-                    // Gracz siedzi na Telefonie: Pokazujemy Touchpad na dole
+                    // Odpalasz na telefonie Windowsa -> Ekran dzieli się na pół (Wideo + Touchpad)
                     document.getElementById('mouse-capture-layer').style.display = 'none';
                     document.getElementById('pc-notice').style.display = 'none';
                 }
             }
         });
 
-        // --- OBSŁUGA BEZPOŚREDNIEGO DOTYKU (DLA ANDROIDA W CHMURZE) ---
+        // --- OBSŁUGA BEZPOŚREDNIEGO DOTYKU (DLA ANDROIDA) ---
         const touchLayer = document.getElementById('touchscreen-layer');
         touchLayer.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -130,8 +133,17 @@
             const relY = (touch.clientY - rect.top) / rect.height;
             socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
         }, {passive: false});
+        
+        // Dodana możliwość "klikania myszką po Androidzie", jeśli odpalisz tę stronę na PC
+        touchLayer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const rect = touchLayer.getBoundingClientRect();
+            const relX = (e.clientX - rect.left) / rect.width;
+            const relY = (e.clientY - rect.top) / rect.height;
+            socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
+        });
 
-        // --- STARY TOUCHPAD (DLA GRACZY MOBILNYCH) ---
+        // --- STARY TOUCHPAD (DLA ZDALNEGO PC ODPALANEGO NA TELEFONIE) ---
         let accumX = 0, accumY = 0, sendTimeout = null;
         function sendBufferedMove(dx, dy) {
             accumX += dx; accumY += dy;
@@ -155,7 +167,7 @@
         document.getElementById('btn-left').addEventListener('touchend', e => { e.preventDefault(); socket.emit("mouse_event", { action: "up", button: 0 }); });
 
 
-        // --- OBSŁUGA GRACZA NA PC (BLOKADA MYSZKI I KLAWIATURY) ---
+        // --- OBSŁUGA GRACZA NA PC (BLOKADA MYSZKI I KLAWIATURY DO WINDOWS/LINUX) ---
         const captureLayer = document.getElementById('mouse-capture-layer');
         const pcNotice = document.getElementById('pc-notice');
         
