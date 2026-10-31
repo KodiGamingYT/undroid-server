@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Un-Droid - Cloud Platform</title>
+    <title>Un-Cloud - Cloud Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body, html { margin: 0; padding: 0; background: #111; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; touch-action: none; }
@@ -17,29 +17,40 @@
         #video-container { height: 40vh; width: 100vw; position: relative; background: #000; border-bottom: 3px solid #333; transition: height 0.3s; }
         iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
         
+        /* Warstwa dotykowa dla Androida (Domyślnie ukryta) */
         #touchscreen-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        
+        /* Warstwa łapiąca myszkę na PC (Domyślnie ukryta) */
+        #mouse-capture-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; cursor: crosshair; }
 
         #controls-container { height: 60vh; width: 100vw; display: flex; flex-direction: column; background: #222; padding: 10px; box-sizing: border-box; }
         .buttons-row { display: flex; height: 25%; width: 100%; gap: 10px; margin-bottom: 10px; }
         .btn { flex: 1; background: #444; border: 2px solid #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; user-select: none; }
         #touchpad { flex: 1; background: #333; border: 2px dashed #666; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; }
 
+        /* --- TRYB PC (FULLSCREEN) --- */
         body.fullscreen-mode #controls-container { display: none !important; }
         body.fullscreen-mode #video-container { height: 100vh !important; border-bottom: none; }
+        
+        #pc-notice { display: none; position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px; border-radius: 20px; font-size: 13px; z-index: 10000; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="lobby">
-        <h1 style="color:#4CAF50;">Un-Droid Cloud</h1>
+        <h1 style="color:#4CAF50;">Un-Cloud</h1>
         <div id="vm-list">Loading...</div>
     </div>
 
     <div id="app-ui">
         <button id="btn-exit" onclick="leaveVM()">Exit</button>
+        <div id="pc-notice">Click anywhere to control (Press ESC to unlock)</div>
+        
         <div id="video-container">
             <iframe id="video-feed" src="" allow="autoplay; picture-in-picture"></iframe>
             <div id="touchscreen-layer"></div>
+            <div id="mouse-capture-layer"></div>
         </div>
+        
         <div id="controls-container">
             <div class="buttons-row"><div id="btn-left" class="btn">Left Click</div><div id="btn-right" class="btn">Right Click</div></div>
             <div id="touchpad"><p>TOUCHPAD</p></div>
@@ -70,22 +81,46 @@
         });
 
         function joinVM(id) { socket.emit('join_vm', id); }
-        function leaveVM() { socket.emit('leave_vm'); document.getElementById('app-ui').style.display='none'; document.getElementById('lobby').style.display='flex'; document.getElementById('video-feed').src=""; document.body.classList.remove('fullscreen-mode'); }
+        
+        function leaveVM() { 
+            socket.emit('leave_vm'); 
+            document.getElementById('app-ui').style.display='none'; 
+            document.getElementById('lobby').style.display='flex'; 
+            document.getElementById('video-feed').src=""; 
+            document.body.classList.remove('fullscreen-mode'); 
+            document.getElementById('pc-notice').style.display = 'none';
+        }
 
         socket.on('join_success', (data) => {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('app-ui').style.display = 'flex';
             document.getElementById('video-feed').src = data.video_url;
 
+            // LOGIKA WYBORU INTERFEJSU
             if (data.os === 'android') {
+                // Tryb Android (Telefon w chmurze): Pełny ekran, aktywny dotyk
                 document.body.classList.add('fullscreen-mode');
                 document.getElementById('touchscreen-layer').style.display = 'block';
+                document.getElementById('mouse-capture-layer').style.display = 'none';
+                document.getElementById('pc-notice').style.display = 'none';
             } else {
+                // Tryb Desktop (Windows/Linux w chmurze)
                 document.getElementById('touchscreen-layer').style.display = 'none';
-                if (!isMobileOrTablet) document.body.classList.add('fullscreen-mode'); 
+                
+                if (!isMobileOrTablet) {
+                    // Gracz siedzi na PC: Pełny ekran, aktywna warstwa łapiąca myszkę
+                    document.body.classList.add('fullscreen-mode');
+                    document.getElementById('mouse-capture-layer').style.display = 'block';
+                    document.getElementById('pc-notice').style.display = 'block';
+                } else {
+                    // Gracz siedzi na Telefonie: Pokazujemy Touchpad na dole
+                    document.getElementById('mouse-capture-layer').style.display = 'none';
+                    document.getElementById('pc-notice').style.display = 'none';
+                }
             }
         });
 
+        // --- OBSŁUGA BEZPOŚREDNIEGO DOTYKU (DLA ANDROIDA W CHMURZE) ---
         const touchLayer = document.getElementById('touchscreen-layer');
         touchLayer.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -96,6 +131,7 @@
             socket.emit('absolute_input', { action: 'tap', x: relX, y: relY });
         }, {passive: false});
 
+        // --- STARY TOUCHPAD (DLA GRACZY MOBILNYCH) ---
         let accumX = 0, accumY = 0, sendTimeout = null;
         function sendBufferedMove(dx, dy) {
             accumX += dx; accumY += dy;
@@ -117,6 +153,62 @@
 
         document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); socket.emit("mouse_event", { action: "down", button: 0 }); });
         document.getElementById('btn-left').addEventListener('touchend', e => { e.preventDefault(); socket.emit("mouse_event", { action: "up", button: 0 }); });
+
+
+        // --- OBSŁUGA GRACZA NA PC (BLOKADA MYSZKI I KLAWIATURY) ---
+        const captureLayer = document.getElementById('mouse-capture-layer');
+        const pcNotice = document.getElementById('pc-notice');
+        
+        captureLayer.addEventListener('click', (e) => {
+            if (e.pointerType === "mouse" || !isMobileOrTablet) captureLayer.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === captureLayer) {
+                pcNotice.style.display = 'none'; 
+                document.addEventListener("mousemove", pcMouseMove, false);
+            } else {
+                if (!isMobileOrTablet && document.getElementById('app-ui').style.display !== 'none') pcNotice.style.display = 'block'; 
+                document.removeEventListener("mousemove", pcMouseMove, false);
+            }
+        }, false);
+
+        function pcMouseMove(e) { sendBufferedMove(e.movementX, e.movementY); }
+        
+        captureLayer.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "down", dx: 0, dy: 0, button: e.button });
+        });
+        captureLayer.addEventListener('mouseup', (e) => {
+            if (document.pointerLockElement === captureLayer) socket.emit("mouse_event", { action: "up", dx: 0, dy: 0, button: e.button });
+        });
+        
+        captureLayer.addEventListener('wheel', (e) => {
+            if (document.pointerLockElement === captureLayer) {
+                e.preventDefault();
+                let scrollDir = e.deltaY > 0 ? -1 : 1;
+                socket.emit("mouse_event", { action: "scroll", dx: 0, dy: scrollDir, button: 0 });
+            }
+        }, { passive: false });
+
+        const blockedKeys = ['Control', 'Alt', 'Shift', 'Meta', 'Tab', 'Insert', 'PrintScreen', 'Escape', 'OS'];
+        function isKeyAllowed(key) {
+            if (blockedKeys.includes(key)) return false;
+            if (/^F(1[0-2]|[1-9])$/.test(key)) return false;
+            return true;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.pointerLockElement !== captureLayer) return;
+            if (e.repeat) return; 
+            if (e.key !== 'Escape') e.preventDefault(); 
+            socket.emit('key_event', { action: 'down', key: e.key });
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (document.pointerLockElement !== captureLayer) return;
+            if (e.key !== 'Escape') e.preventDefault();
+            socket.emit('key_event', { action: 'up', key: e.key });
+        });
     </script>
 </body>
 </html>
